@@ -1,18 +1,41 @@
-from NCA_utils import *
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import image
+import silence_tensorflow.auto # shuts up tensorflow's spammy warning messages
 import tensorflow as tf
 import scipy as sp
 from tqdm import tqdm
 import datetime
-#import keras.applications.vgg16 as vgg16
-#--- Setup definitions
 
 
 
 class NCA(tf.keras.Model):
-	#--- Neural Cellular Automata class
+	""" 
+		Neural Cellular Automata class. Is a subclass of keras.model,
+		so that model loading and saving are inherited. 
+		Heavily inspired by work at https://distill.pub/2020/growing-ca/ 
+		modified and extended for purpose of modelling stem cell differentiation experiments
+	
+
+	"""
+
+
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+		"""
+			Initialiser for neural cellular automata object
+
+			Parameters
+			----------
+			N_CHANNELS : int
+				Number of channels to include - first 4 are visible as RGBA, others are hidden
+			FIRE_RATE : float in [0,1]
+				Controls stochasticity of cell updates, at 1 all cells update every step, at 0 no cells update
+			ADHESION_MASK : boolean array [size,size] optional
+				A binary mask indicating the presence of the adesive micropattern surface
+		"""
+
+
+
 		super(NCA,self).__init__()
 		self.N_CHANNELS=N_CHANNELS # RGBA +hidden layers
 		self.FIRE_RATE=FIRE_RATE # controls stochastic updates - i.e. grid isn't globaly synchronised
@@ -22,8 +45,8 @@ class NCA(tf.keras.Model):
 			self.ADHESION_MASK=None
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.tanh),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.tanh),
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.01)),
+			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.01)),
 			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.zeros_initializer)])
 		self(tf.zeros([1,3,3,N_CHANNELS])) # Dummy call to build the model
 		
@@ -112,17 +135,24 @@ class NCA(tf.keras.Model):
 		
 		print("Trajectory shape: "+str(trajectory.shape))
 		print("x0 shape: "+str(x0.shape))
+		
 		if x0.shape[-1]<self.N_CHANNELS: # If x0 has less channels than the NCA, pad zeros to x0
 			z0 = np.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
 			x0 = np.concatenate((x0,z0),axis=-1)
 		assert trajectory[0].shape == x0.shape
 		print("x0 shape: "+str(x0.shape))
 		
+		
 		if ADHESION_MASK is not None:
 			print("Adhesion mask shape: "+str(ADHESION_MASK.shape))
-			#self.ADHESION_MASK = ADHESION_MASK
 			self.ADHESION_MASK=np.repeat(ADHESION_MASK[...,np.newaxis],self.N_CHANNELS,axis=-1)
+			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
+				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
+
 		if self.ADHESION_MASK is not None:
+			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
+				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
+			print("Adhesion mask shape: "+str(self.ADHESION_MASK.shape))
 			_mask = np.zeros((x0.shape),dtype="float32")
 			_mask[...,4]=1
 			print("Adhesion channel select mask shape: "+str(_mask.shape))
@@ -180,6 +210,165 @@ def load_wrapper(filename):
 	return tf.keras.models.load_model("models/"+filename,custom_objects={"NCA":NCA})
 	
 
+	
+	
+def setup_tb_log_single(ca,target,x0,model_filename=None):
+	"""
+		Initialises the tensorboard logging of training.
+		Writes some initial information (initial grid condition, target, NCA computation graph)
+
+		Parameters
+		----------
+		ca : object callable - float32 tensor [batches,size,size,N_CHANNELS],float32,float32 -> float32 tensor [batches,size,size,N_CHANNELS]
+			the NCA object to train
+		target : float32 tensor [batches,size,size,4]
+			the target image to be grown by the NCA.
+		x0 : float32 tensor [batches,size,size,k<=N_CHANNELS]
+			the initial condition of NCA. If it has less channels than the NCA, pad with zeros. If none, is set to zeros with one 'seed' of 1s in the middle
+		model_filename : str
+			name of directories to save tensorboard log and model parameters to.
+			log at :	'logs/gradient_tape/model_filename/train'
+			model at : 	'models/model_filename'
+			if None, doesn't save model but still saves log to 'logs/gradient_tape/*current_time*/train'
+
+		Returns
+		-------
+		train_summary_writer : tf.summary.file_writer object
+	"""
+
+
+	if model_filename is None:
+		current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		train_log_dir = "logs/gradient_tape/"+current_time+"/train"
+	else:
+		train_log_dir = "logs/gradient_tape/"+model_filename+"/train"
+	train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+	
+	#--- Log the graph structure of the NCA
+	tf.summary.trace_on(graph=True,profiler=True)
+	y = ca.perceive(x0)
+	with train_summary_writer.as_default():
+		tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
+	
+	tf.summary.trace_on(graph=True,profiler=True)
+	x = ca(x0)
+	with train_summary_writer.as_default():
+		tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
+	
+	#--- Log the target image and initial condtions
+	with train_summary_writer.as_default():
+		tf.summary.image('Initial GSC - Brachyury T - SOX2 --- Lamina B',
+						 np.concatenate((x0[:1,...,:3],np.repeat(x0[:1,...,3:4],3,axis=-1)),axis=0),
+						 step=0)
+	
+		tf.summary.image('Target GSC - Brachyury T - SOX2 --- Lamina B',
+						 np.concatenate((target[:1,...,:3],np.repeat(target[:1,...,3:4],3,axis=-1)),axis=0),
+						 step=0)
+	return train_summary_writer
+
+def setup_tb_log_sequence(ca,x0,data,model_filename=None):
+	"""
+		Initialises the tensorboard logging of training.
+		Writes some initial information. Very similar to setup_tb_log_single, but designed for sequence modelling
+
+		Parameters
+		----------
+		ca : object callable - float32 tensor [batches,size,size,N_CHANNELS],float32,float32 -> float32 tensor [batches,size,size,N_CHANNELS]
+			the NCA object to train
+		x0 : float32 tensor [batches,size,size,N_CHANNELS]
+			correctly formatter initial condition for NCA function trace
+		data : float32 tensor [T,batches,size,size,4]
+			the image sequence to be modelled by the NCA.
+		model_filename : str
+			name of directories to save tensorboard log and model parameters to.
+			log at :	'logs/gradient_tape/model_filename/train'
+			model at : 	'models/model_filename'
+			if None, doesn't save model but still saves log to 'logs/gradient_tape/*current_time*/train'
+
+		Returns
+		-------
+		train_summary_writer : tf.summary.file_writer object
+	"""
+
+
+	if model_filename is None:
+		current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		train_log_dir = "logs/gradient_tape/"+current_time+"/train"
+	else:
+		train_log_dir = "logs/gradient_tape/"+model_filename+"/train"
+	train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+	
+	#--- Log the graph structure of the NCA
+	tf.summary.trace_on(graph=True,profiler=True)
+	y = ca.perceive(x0)
+	with train_summary_writer.as_default():
+		tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
+	
+	tf.summary.trace_on(graph=True,profiler=True)
+	x = ca(x0)
+	with train_summary_writer.as_default():
+		tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
+	
+	#--- Log the target image and initial condtions
+	with train_summary_writer.as_default():
+		tf.summary.image('Sequence GSC - Brachyury T - SOX2',data[:,0,...,:3],step=0,max_outputs=data.shape[0])
+		
+		
+	return train_summary_writer
+
+def tb_training_loop_log(train_summary_writer,loss,ca,x,i):
+	"""
+		Helper function to format some data logging during the training loop
+
+		Parameters
+		----------
+		train_summary_writer : tf.summary.file_writer object
+		
+		ca : object callable - float32 tensor [batches,size,size,N_CHANNELS],float32,float32 -> float32 tensor [batches,size,size,N_CHANNELS]
+			the NCA object being trained, so that it's weights can be logged
+		x : float32 tensor [N_BATCHES,size,size,N_CHANNELS]
+			final output of NCA
+		i : int
+			current step in training loop - useful for logging something every n steps
+
+	"""
+	with train_summary_writer.as_default():
+		tf.summary.scalar('Loss',loss,step=i)
+		if i%10==0:
+			tf.summary.image('Final state GSC - Brachyury T - SOX2 --- Lamina B',
+							 np.concatenate((x[:1,...,:3],np.repeat(x[:1,...,3:4],3,axis=-1)),axis=0),
+							 step=i)
+			#print(ca.dense_model.layers[0].get_weights()[0])
+			model_params_0 = ca.dense_model.layers[0].get_weights()
+			model_params_1 = ca.dense_model.layers[1].get_weights()
+			model_params_2 = ca.dense_model.layers[2].get_weights()
+			tf.summary.histogram('Layer 0 weights',model_params_0[0],step=i)
+			tf.summary.histogram('Layer 1 weights',model_params_1[0],step=i)
+			tf.summary.histogram('Layer 2 weights',model_params_2[0],step=i)
+			tf.summary.histogram('Layer 0 biases',model_params_0[1],step=i)
+			tf.summary.histogram('Layer 1 biases',model_params_1[1],step=i)
+			tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
+
+def tb_write_result(train_summary_writer,ca,x0):
+	with train_summary_writer.as_default():
+		grids = ca.run(x0,200,1)
+		grids[...,4:] = (1+np.tanh(grids[...,4:]))/2.0
+		for i in range(200):
+			tf.summary.image('Trained NCA dynamics GSC - Brachyury T - SOX2 --- Lamina B',
+							 np.concatenate((grids[i,:1,...,:3],
+							 				 np.repeat(grids[i,:1,...,3:4],3,axis=-1)),
+							 				axis=1),
+							 step=i)
+	
+			tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
+							 np.concatenate((grids[i,:1,...,4:7],
+											 grids[i,:1,...,7:10],
+											 grids[i,:1,...,10:13],
+											 grids[i,:1,...,13:16],),
+							  				axis=1),
+							 step=i,
+							 max_outputs=4)
+	
 
 
 def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None):
@@ -206,13 +395,14 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 			model at : 	'models/model_filename'
 			if None, doesn't save model but still saves log to 'logs/gradient_tape/*current_time*/train'
 
+		
 		Returns
 		-------
 		None
 	"""
 	#TRAIN_ITERS = 1000
 	loss_log = []
-	TARGET_SIZE = target.shape[0]
+	TARGET_SIZE = target.shape[1]
 	N_CHANNELS = ca.N_CHANNELS
 
 	lr = 2e-3
@@ -225,21 +415,15 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 		x0 = np.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,N_CHANNELS),dtype="float32")
 		x0[:,TARGET_SIZE//2,TARGET_SIZE//2,:]=1
 	else:
-		#print(x0.shape)
-		z0 = np.zeros((x0.shape[0],x0.shape[1],x0.shape[2],16-x0.shape[3]))
-		#print(z0.shape)
+		z0 = np.zeros((x0.shape[0],x0.shape[1],x0.shape[2],N_CHANNELS-x0.shape[3]))
 		x0 = np.concatenate((x0,z0),axis=-1).astype("float32")
-		#print(x0.shape)
-		#x0 = x0[np.newaxis]
 		if x0.shape[0]==1:
 			x0 = np.repeat(x0,N_BATCHES,axis=0).astype("float32")
-		#print(x0.shape)
-
+	
 	if ca.ADHESION_MASK is not None:
 		_mask = np.zeros((x0.shape),dtype="float32")
 		_mask[...,4]=1
 
-	
 
 
 
@@ -247,49 +431,21 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 		#return tf.reduce_mean(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.reduce_max(tf.square(x[...,:4]-target),[-2, -3, -1])
 		return tf.math.reduce_euclidean_norm(x[...,:4]-target,[-2,-3,-1])
+	
 	def train_step(x):
-		#iter_n=np.random.randint(50,70)
-		#iter_n = 50
 		with tf.GradientTape() as g:
 			for i in range(iter_n):
 				x = ca(x)
 				if ca.ADHESION_MASK is not None:
 					x = _mask*ca.ADHESION_MASK + (1-_mask)*x
-			#x = ca.run(x,iter_n,N_BATCHES)[-1]
-			#print(x)
 			loss = tf.reduce_mean(loss_f(x))
 		grads = g.gradient(loss,ca.weights)
 		grads = [g/(tf.norm(g)+1e-8) for g in grads]
 		trainer.apply_gradients(zip(grads, ca.weights))
-
-
 		return x, loss
 
-
-
-
-	#--- Setup tensorboard logging stuff
-	if model_filename is None:
-		current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-		train_log_dir = "logs/gradient_tape/"+current_time+"/train"
-	else:
-		train_log_dir = "logs/gradient_tape/"+model_filename+"/train"
-	train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-	
-	#--- Log the graph structure of the NCA
-	tf.summary.trace_on(graph=True,profiler=True)
-	y = ca.perceive(x0)
-	with train_summary_writer.as_default():
-		tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
-	
-	tf.summary.trace_on(graph=True,profiler=True)
-	x = ca(x0)
-	with train_summary_writer.as_default():
-		tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
-	
-	#--- Log the target image
-	with train_summary_writer.as_default():
-		tf.summary.image('Target image',target,step=0)
+	#--- Setup tensorboard logging
+	train_summary_writer = setup_tb_log_single(ca,target,x0,model_filename)
 
 	#--- Do training loop
 	for i in tqdm(range(TRAIN_ITERS)):
@@ -297,114 +453,126 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 		loss_log.append(loss)
 		
 		#--- Write to log
-		with train_summary_writer.as_default():
-			tf.summary.scalar('Loss',loss,step=i)
-			if i%10==0:
-				tf.summary.image('Final state',x[...,:4],step=i)
-		#if i%100==0:
-		#	plt.imshow(x[0,:,:,:4])
-		#	plt.show()
-	with train_summary_writer.as_default():
-		grids = ca.run(x0,200,N_BATCHES)
-		#grids = run(ca,200,1,TARGET_SIZE)
+		tb_training_loop_log(train_summary_writer,loss,ca,x,i)
 		
-		grids[...,4:] = (1+np.tanh(grids[...,4:]))/2.0
-		for i in range(200):
-			tf.summary.image('Trained NCA dynamics (RGBA)',grids[i,...,:4],step=i)
-			tf.summary.image('Trained NCA hidden dynamics (tanh limited) 1',grids[i,...,4:8],step=i)
-			tf.summary.image('Trained NCA hidden dynamics (tanh limited) 2',grids[i,...,8:12],step=i)
-			tf.summary.image('Trained NCA hidden dynamics (tanh limited) 3',grids[i,...,12:],step=i)
-	
+	#--- Write resulting animation to tensorboard			
+	tb_write_result(train_summary_writer,ca,x0)
+
 	#--- If a filename is provided, save the trained NCA model.
 	if model_filename is not None:
 		ca.save_wrapper(model_filename)
 
-""" - disused
-def run(model,T=100,N_BATCHES=1,TARGET_SIZE=40):
-	N_CHANNELS = model.N_CHANNELS
-	grids = np.zeros((T,N_BATCHES,TARGET_SIZE,TARGET_SIZE,N_CHANNELS),dtype="float32")
-	grids[0,:,TARGET_SIZE//2,TARGET_SIZE//2,:]=1
-	for t in range(1,T):
-		grids[t]=(model(grids[t-1]))
-		if model.ADHESION_MASK is not None:
-			grids[t,...,4] = model.ADHESION_MASK
-	return grids
-"""
 
 
+def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
+	"""
+		Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
+		
+		Parameters
+		----------
+		ca : object callable - float32 tensor [batches,size,size,N_CHANNELS],float32,float32 -> float32 tensor [batches,size,size,N_CHANNELS]
+			the NCA object to train
+		data : float32 tensor [T,batches,size,size,4]
+			The image sequence being modelled. data[0] is treated as the initial condition
+		N_BATCHES : int
+			size of training batch
+		TRAIN_ITERS : int
+			how many iterations of training
+		iter_n : int
+			number of NCA update steps to run ca
+		model_filename : str
+			name of directories to save tensorboard log and model parameters to.
+			log at :	'logs/gradient_tape/model_filename/train'
+			model at : 	'models/model_filename'
+			if None, doesn't save model but still saves log to 'logs/gradient_tape/*current_time*/train'
 
+		
+		Returns
+		-------
+		None
+	"""
+	data = data.astype("float32")
+	N_CHANNELS = ca.N_CHANNELS
 
-
-
-def main():
-
-	T=0
-	N_CHANNELS=16 # Must be greater than 4
-	N_BATCHES=4
+	lr = 2e-3
+	lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
+	trainer = tf.keras.optimizers.Adam(lr_sched)
 	
-
-	#a = load_sequence_A("A1_F11")
-	a = load_sequence_batch(N_BATCHES)[:,:,::2,::2]
-	#for i in range(5):
-	#	plt.imshow(a[T,i,...,3])
-	#	plt.show()
 	
-	print(a.shape)
-	mask = adhesion_mask_batch(a)
-	print(mask.shape)
+	#--- Setup initial condition
+	x0 = data[0]
+	T = data.shape[0]
+	z0 = np.zeros((x0.shape[0],x0.shape[1],x0.shape[2],N_CHANNELS-x0.shape[3]))
+	x0 = np.concatenate((x0,z0),axis=-1).astype("float32")
+	if x0.shape[0]==1:
+		x0 = np.repeat(x0,N_BATCHES,axis=0).astype("float32")
 	
-	for i in range(N_BATCHES):
-		plt.imshow(a[T,i,...,:3])
-		plt.show()
-		plt.imshow(mask[i])
-		plt.show()
+	if data.shape[1]==1:
+		data = np.repeat(data,N_BATCHES,axis=1)
 	
+	if ca.ADHESION_MASK is not None:
+		_mask = np.zeros((x0.shape),dtype="float32")
+		_mask[...,4]=1
 
 
-	ca = NCA(N_CHANNELS,ADHESION_MASK=mask)
 
 
-	#print(np.max(target[...,3]))
-	train(ca,a[2],N_BATCHES,1000,a[0],48,"euclidean_norm_error_tanh_activation")
-
-	print("Training complete")
-	#t1 = datetime.datetime.now()
-
+	def loss_f(x,x_true):
+		#return tf.reduce_mean(tf.square(x[...,:4]-target),[-2, -3, -1])
+		#return tf.reduce_max(tf.square(x[...,:4]-target),[-2, -3, -1])
+		return tf.math.reduce_euclidean_norm(x[...,:4]-x_true,[-2,-3,-1])
 	
-	#ca.save_wrapper("save_test_2")
-	#t2 = datetime.datetime.now()
-	#print(t2-t1)
-	#ca2 = tf.keras.models.load_model("save_test",custom_objects={"NCA":NCA})
-	ca2 = load_wrapper("euclidean_norm_error_tanh_activation")
-	#print(a[0].shape)
+	def train_step(x):
+		state_log = []
+		with tf.GradientTape() as g:
+			#times = [24,36,48]
+			times = np.linspace(0,iter_n,num=5,endpoint=True,dtype=int)[2:]
+			g.watch(state_log)
+			g.watch(x)
+			print(times)
+			for i in range(iter_n):
+				x = ca(x)
+				if ca.ADHESION_MASK is not None:
+					x = _mask*ca.ADHESION_MASK + (1-_mask)*x
+				#if (i%(iter_n//(T)+1)==0) and (i!=0):
+				if i+1 in times:
+					state_log.append(x)
+					print(i)
+					
+					
+			state_log = np.array(state_log)
+			print(state_log.shape)
+			print(data[1:].shape)
+			losses = loss_f(state_log,data[1:])
+			print(losses)
+			mean_loss = tf.reduce_mean(losses)
+			print(mean_loss)
+			_loss = loss_f(x,data[-1])
+			print(_loss)
+			loss = tf.reduce_mean(_loss)
+			print(loss)
+			#loss = tf.reduce_mean(loss_f(x))
+		grads = g.gradient(losses[-1],ca.weights)
+		#grads = g.gradient(loss,ca.weights)
+		#print(grads)
+		grads = [g/(tf.norm(g)+1e-8) for g in grads]
+		trainer.apply_gradients(zip(grads, ca.weights))
+		return x, mean_loss
 
-	#grids = run(ca,1000,1,100)[:,0]
-	grids = ca.run(a[0],100,1,mask)[:,0]
-	print(np.max(grids))
-	print(np.min(grids))
-	my_animate(grids[...,:4])
+	#--- Setup tensorboard logging
+	train_summary_writer = setup_tb_log_sequence(ca,x0,data,model_filename)
 
-	grids2 = ca2.run(a[0],100,1,mask)[:,0]
-	my_animate(grids2[...,:4])
+	#--- Do training loop
+	for i in tqdm(range(TRAIN_ITERS)):
+		x,mean_loss = train_step(x0)
+		#loss = np.concatenate((mean_loss,losses),axis=0)
+		#print(loss.shape)
+		#--- Write to log
+		tb_training_loop_log(train_summary_writer,mean_loss,ca,x,i)
+		
+	#--- Write resulting animation to tensorboard			
+	tb_write_result(train_summary_writer,ca,x0)
 
-
-	grids[...,4:] = (1+np.tanh(grids[...,4:]))/2.0
-	#my_animate(np.abs(grids[...,:4]-target))
-	my_animate(grids[...,4:8])
-	my_animate(grids[...,8:12])
-	my_animate(grids[...,12:])
-	plt.imshow(grids[50,...,:4])
-	plt.show()
-	#my_animate((grids[...,:4]+1)/2.0)
-
-	#error = np.sqrt(np.sum((target-grids[50,:,:,:4])**2))
-	#print(error)
-	#grids = (grids+np.abs(np.min(grids)))/(2*np.max(grids))
-	
-	# Visualise different subsets of channels 
-	
-	#my_animate(grids[...,3:6])
-	#my_animate(grids[...,6:9])
-	
-if __name__=="__main__":
-	main()
+	#--- If a filename is provided, save the trained NCA model.
+	if model_filename is not None:
+		ca.save_wrapper(model_filename)
