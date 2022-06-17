@@ -32,10 +32,10 @@ def load_sequence_A(name):
   """
 
 
-  I_0h = skimage.io.imread(impath+name+"_0h.ome.tiff")#[::2,::2]
-  I_24h = skimage.io.imread(impath+name+"_24h.ome.tiff")#[::2,::2]
-  I_36h = skimage.io.imread(impath+name+"_36h.ome.tiff")#[::2,::2]
-  I_48h = skimage.io.imread(impath+name+"_48h.ome.tiff")#[::2,::2]
+  I_0h = skimage.io.imread(impath+"0h/"+name+"_0h.ome.tiff")#[::2,::2]
+  I_24h = skimage.io.imread(impath+"24h/A/"+name+"_24h.ome.tiff")#[::2,::2]
+  I_36h = skimage.io.imread(impath+"36h/A/"+name+"_36h.ome.tiff")#[::2,::2]
+  I_48h = skimage.io.imread(impath+"48h/A/"+name+"_48h.ome.tiff")#[::2,::2]
   #I_60h = skimage.io.imread(impath+name+"_60h.ome.tiff")#[::2,::2]
   I_0h = I_0h[np.newaxis]/np.max(I_0h,axis=(0,1))
   I_24h = I_24h[np.newaxis]/np.max(I_24h,axis=(0,1))
@@ -99,16 +99,22 @@ def load_sequence_batch(N_BATCHES):
     data_batches = np.concatenate((data_batches,load_sequence_A(names_selected[i])),axis=1)
   return data_batches
 
-def load_sequence_ensemble_average():
+def load_sequence_ensemble_average(masked=True):
   """
     Loads all image sequences and averages across them,
     to create image sequence of ensemble averages
+
+    Parameters
+    ----------
+    masked : boolean
+      controls whether to apply the adhesion mask to the data
 
     Returns
     -------
     data : float32 array [T,size,size,4]
   """
 
+  """
   names_A = ["A1_F1","A1_F2","A1_F3","A1_F4","A1_F5",
            "A1_F6","A1_F7","A1_F8","A1_F9","A1_F10",
            "A1_F11","A1_F12","A1_F13","A1_F14","A1_F15"]
@@ -116,7 +122,26 @@ def load_sequence_ensemble_average():
   for i in range(1,len(names_A)):
     data_batches = np.concatenate((data_batches,load_sequence_A(names_A[i])),axis=1)
   data = np.mean(data_batches,axis=1,keepdims=True)
-  return data
+  """
+
+  I_0h = skimage.io.imread(impath+"ensemble_averages/A/AVG_0h.tif")
+  I_24h = skimage.io.imread(impath+"ensemble_averages/A/AVG_24h.tif")
+  I_36h = skimage.io.imread(impath+"ensemble_averages/A/AVG_36h.tif")
+  I_48h = skimage.io.imread(impath+"ensemble_averages/A/AVG_48h.tif")
+
+  I_0h = I_0h[np.newaxis]/np.max(I_0h,axis=(0,1))
+  I_24h = I_24h[np.newaxis]/np.max(I_24h,axis=(0,1))
+  I_36h = I_36h[np.newaxis]/np.max(I_36h,axis=(0,1))
+  I_48h = I_48h[np.newaxis]/np.max(I_48h,axis=(0,1))
+  
+  data = np.stack((I_0h,I_24h,I_36h,I_48h))
+  if masked:
+    mask = adhesion_mask(data)
+    zs = np.zeros(data.shape)
+    data = np.where(np.repeat(np.repeat(mask[np.newaxis],4,axis=0)[:,:,:,:,np.newaxis],4,axis=-1),data,zs)
+    return data, mask
+  else:
+    return data
 
 
 def adhesion_mask(data):

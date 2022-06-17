@@ -16,7 +16,6 @@ class NCA(tf.keras.Model):
 		Heavily inspired by work at https://distill.pub/2020/growing-ca/ 
 		modified and extended for purpose of modelling stem cell differentiation experiments
 	
-
 	"""
 
 
@@ -45,8 +44,8 @@ class NCA(tf.keras.Model):
 			self.ADHESION_MASK=None
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.01)),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.01)),
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.001)),
+			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.001)),
 			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.zeros_initializer)])
 		self(tf.zeros([1,3,3,N_CHANNELS])) # Dummy call to build the model
 		
@@ -74,7 +73,10 @@ class NCA(tf.keras.Model):
 		I  = np.outer(_i,_i)
 		dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
 		dy = dx.T
-		kernel = tf.stack([I,dx,dy],-1)[:,:,None,:]
+		lap = np.array([[0.25,0.5,0.25],
+						[0.5,-3,0.5],
+						[0.25,0.5,0.25]]).astype(np.float32)
+		kernel = tf.stack([I,dx,dy,lap],-1)[:,:,None,:]
 		kernel = tf.repeat(kernel,self.N_CHANNELS,2)
 		y = tf.nn.depthwise_conv2d(x,kernel,[1,1,1,1],"SAME")
 		
@@ -316,7 +318,8 @@ def setup_tb_log_sequence(ca,x0,data,model_filename=None):
 		
 	return train_summary_writer
 
-def tb_training_loop_log(train_summary_writer,loss,ca,x,i):
+
+def tb_training_loop_log_sequence(train_summary_writer,loss,ca,x,i,N_BATCHES):
 	"""
 		Helper function to format some data logging during the training loop
 
@@ -333,6 +336,55 @@ def tb_training_loop_log(train_summary_writer,loss,ca,x,i):
 
 	"""
 	with train_summary_writer.as_default():
+		#for j in range(len(loss)):
+		tf.summary.scalar('Mean Loss',loss[0],step=i)
+		tf.summary.scalar('Loss 1',loss[1],step=i)
+		tf.summary.scalar('Loss 2',loss[2],step=i)
+		tf.summary.scalar('Loss 3',loss[3],step=i)
+		tf.summary.histogram('Loss ',loss,step=i)
+		if i%10==0:
+			tf.summary.image('12h GSC - Brachyury T - SOX2 --- Lamina B',
+							 np.concatenate((x[:N_BATCHES,...,:3],np.repeat(x[:N_BATCHES,...,3:4],3,axis=-1)),axis=0),
+							 step=i)
+			tf.summary.image('24h GSC - Brachyury T - SOX2 --- Lamina B',
+							 np.concatenate((x[N_BATCHES:2*N_BATCHES,...,:3],np.repeat(x[N_BATCHES:2*N_BATCHES,...,3:4],3,axis=-1)),axis=0),
+							 step=i)
+			tf.summary.image('36h GSC - Brachyury T - SOX2 --- Lamina B',
+							 np.concatenate((x[2*N_BATCHES:3*N_BATCHES,...,:3],np.repeat(x[2*N_BATCHES:3*N_BATCHES,...,3:4],3,axis=-1)),axis=0),
+							 step=i)
+			tf.summary.image('48h GSC - Brachyury T - SOX2 --- Lamina B',
+							 np.concatenate((x[3*N_BATCHES:4*N_BATCHES,...,:3],np.repeat(x[3*N_BATCHES:4*N_BATCHES,...,3:4],3,axis=-1)),axis=0),
+							 step=i)
+			#print(ca.dense_model.layers[0].get_weights()[0])
+			model_params_0 = ca.dense_model.layers[0].get_weights()
+			model_params_1 = ca.dense_model.layers[1].get_weights()
+			model_params_2 = ca.dense_model.layers[2].get_weights()
+			tf.summary.histogram('Layer 0 weights',model_params_0[0],step=i)
+			tf.summary.histogram('Layer 1 weights',model_params_1[0],step=i)
+			tf.summary.histogram('Layer 2 weights',model_params_2[0],step=i)
+			tf.summary.histogram('Layer 0 biases',model_params_0[1],step=i)
+			tf.summary.histogram('Layer 1 biases',model_params_1[1],step=i)
+			tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
+
+
+def tb_training_loop_log_single(train_summary_writer,loss,ca,x,i):
+	"""
+		Helper function to format some data logging during the training loop
+
+		Parameters
+		----------
+		train_summary_writer : tf.summary.file_writer object
+		
+		ca : object callable - float32 tensor [batches,size,size,N_CHANNELS],float32,float32 -> float32 tensor [batches,size,size,N_CHANNELS]
+			the NCA object being trained, so that it's weights can be logged
+		x : float32 tensor [N_BATCHES,size,size,N_CHANNELS]
+			final output of NCA
+		i : int
+			current step in training loop - useful for logging something every n steps
+
+	"""
+	with train_summary_writer.as_default():
+		#for j in range(len(loss)):
 		tf.summary.scalar('Loss',loss,step=i)
 		if i%10==0:
 			tf.summary.image('Final state GSC - Brachyury T - SOX2 --- Lamina B',
@@ -349,6 +401,9 @@ def tb_training_loop_log(train_summary_writer,loss,ca,x,i):
 			tf.summary.histogram('Layer 1 biases',model_params_1[1],step=i)
 			tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
 
+
+
+
 def tb_write_result(train_summary_writer,ca,x0):
 	with train_summary_writer.as_default():
 		grids = ca.run(x0,200,1)
@@ -361,11 +416,12 @@ def tb_write_result(train_summary_writer,ca,x0):
 							 step=i)
 	
 			tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
-							 np.concatenate((grids[i,:1,...,4:7],
-											 grids[i,:1,...,7:10],
-											 grids[i,:1,...,10:13],
-											 grids[i,:1,...,13:16],),
-							  				axis=1),
+							 grids[i,:1,...,4:7],
+							 #np.concatenate((grids[i,:1,...,4:7],
+							#				 grids[i,:1,...,7:10]),
+											 #grids[i,:1,...,10:13],
+											 #grids[i,:1,...,13:16],),
+							#  				axis=1),
 							 step=i,
 							 max_outputs=4)
 	
@@ -453,7 +509,7 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 		loss_log.append(loss)
 		
 		#--- Write to log
-		tb_training_loop_log(train_summary_writer,loss,ca,x,i)
+		tb_training_loop_log_single(train_summary_writer,loss,ca,x,i)
 		
 	#--- Write resulting animation to tensorboard			
 	tb_write_result(train_summary_writer,ca,x0)
@@ -493,23 +549,40 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	"""
 	data = data.astype("float32")
 	N_CHANNELS = ca.N_CHANNELS
-
+	print(np.max(data))
+	print(np.min(data))
 	lr = 2e-3
-	lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
+	#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
+	lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
 	trainer = tf.keras.optimizers.Adam(lr_sched)
-	
+	#trainer = tf.keras.optimizers.RMSprop(lr_sched)
 	
 	#--- Setup initial condition
-	x0 = data[0]
-	T = data.shape[0]
-	z0 = np.zeros((x0.shape[0],x0.shape[1],x0.shape[2],N_CHANNELS-x0.shape[3]))
-	x0 = np.concatenate((x0,z0),axis=-1).astype("float32")
-	if x0.shape[0]==1:
-		x0 = np.repeat(x0,N_BATCHES,axis=0).astype("float32")
 	
 	if data.shape[1]==1:
-		data = np.repeat(data,N_BATCHES,axis=1)
+		data = np.repeat(data,N_BATCHES,axis=1).astype("float32")
 	
+	x0 = np.copy(data[:])
+	x0[1:] = data[:-1] # Including 1 extra time slice to account for hidden 12h time
+	target = data[1:]
+	for i in range(target.shape[0]):
+		plt.imshow(target[i,0,...,:3])
+		plt.show()
+		plt.imshow(x0[i+1,0,...,:3])
+		plt.show()
+	print(x0.shape)
+	print(target.shape)
+
+	T = data.shape[0]
+	z0 = np.zeros((x0.shape[0],x0.shape[1],x0.shape[2],x0.shape[3],N_CHANNELS-x0.shape[4]))
+	x0 = np.concatenate((x0,z0),axis=-1).astype("float32")
+	
+	x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+	print(x0.shape)
+	target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
+	print(target.shape)
+	x0_true = np.copy(x0)
+
 	if ca.ADHESION_MASK is not None:
 		_mask = np.zeros((x0.shape),dtype="float32")
 		_mask[...,4]=1
@@ -517,58 +590,66 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 
 
 
-	def loss_f(x,x_true):
+	#loss_mask = np.ones(x0.shape[0]).astype(bool)
+	#loss_mask[:N_BATCHES] = 0
+	#print(loss_mask)
+	#print()
+
+	def loss_f(x):
 		#return tf.reduce_mean(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.reduce_max(tf.square(x[...,:4]-target),[-2, -3, -1])
-		return tf.math.reduce_euclidean_norm(x[...,:4]-x_true,[-2,-3,-1])
+		#return tf.math.reduce_euclidean_norm(tf.boolean_mask(x[...,:4],loss_mask)-target,[-2,-3,-1])
+		return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
 	
-	def train_step(x):
+	print(loss_f(x0))
+
+	def train_step(x,update_gradients=True):
 		state_log = []
 		with tf.GradientTape() as g:
 			#times = [24,36,48]
-			times = np.linspace(0,iter_n,num=5,endpoint=True,dtype=int)[2:]
-			g.watch(state_log)
-			g.watch(x)
-			print(times)
+			#times = np.linspace(0,iter_n,num=5,endpoint=True,dtype=int)[2:]
+			#g.watch(state_log)
+			#g.watch(x)
+			#print(times)
 			for i in range(iter_n):
 				x = ca(x)
 				if ca.ADHESION_MASK is not None:
 					x = _mask*ca.ADHESION_MASK + (1-_mask)*x
-				#if (i%(iter_n//(T)+1)==0) and (i!=0):
-				if i+1 in times:
-					state_log.append(x)
-					print(i)
-					
-					
-			state_log = np.array(state_log)
-			print(state_log.shape)
-			print(data[1:].shape)
-			losses = loss_f(state_log,data[1:])
-			print(losses)
+			losses = loss_f(x) 
 			mean_loss = tf.reduce_mean(losses)
-			print(mean_loss)
-			_loss = loss_f(x,data[-1])
-			print(_loss)
-			loss = tf.reduce_mean(_loss)
-			print(loss)
-			#loss = tf.reduce_mean(loss_f(x))
-		grads = g.gradient(losses[-1],ca.weights)
-		#grads = g.gradient(loss,ca.weights)
-		#print(grads)
-		grads = [g/(tf.norm(g)+1e-8) for g in grads]
-		trainer.apply_gradients(zip(grads, ca.weights))
-		return x, mean_loss
+					
+					
+			
+			
+			
+		if update_gradients:
+			grads = g.gradient(mean_loss,ca.weights)
+			grads = [g/(tf.norm(g)+1e-8) for g in grads]
+			trainer.apply_gradients(zip(grads, ca.weights))
+		return x, mean_loss,losses
 
 	#--- Setup tensorboard logging
 	train_summary_writer = setup_tb_log_sequence(ca,x0,data,model_filename)
 
+
+
 	#--- Do training loop
 	for i in tqdm(range(TRAIN_ITERS)):
-		x,mean_loss = train_step(x0)
-		#loss = np.concatenate((mean_loss,losses),axis=0)
+
+		x,mean_loss,losses = train_step(x0)#,i%4==0)
+		#if i>10:
+		#x0[N_BATCHES:2*N_BATCHES] = x[:N_BATCHES] # hidden 12h timeslice
+		x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
+		if N_BATCHES>1:
+			x0[::N_BATCHES][2:] = x0_true[::N_BATCHES][2:] # update one batch to contain the true initial conditions
+		
+		#print(mean_loss)
+		#print(losses)
+		loss = np.hstack((mean_loss,losses))
+		
 		#print(loss.shape)
 		#--- Write to log
-		tb_training_loop_log(train_summary_writer,mean_loss,ca,x,i)
+		tb_training_loop_log_sequence(train_summary_writer,loss,ca,x,i,N_BATCHES)
 		
 	#--- Write resulting animation to tensorboard			
 	tb_write_result(train_summary_writer,ca,x0)
