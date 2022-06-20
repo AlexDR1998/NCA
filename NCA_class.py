@@ -597,9 +597,9 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 		#return tf.reduce_mean(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.reduce_max(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.math.reduce_euclidean_norm(tf.boolean_mask(x[...,:4],loss_mask)-target,[-2,-3,-1])
-		#return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
+		return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
 		#return tf.reduce_max(tf.square(x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
-		return -tf.reduce_sum(tf.math.l2_normalize(x[N_BATCHES:,...,:4])*(target),[-2,-3,-1])
+		#return -tf.reduce_sum(tf.math.l2_normalize(x[N_BATCHES:,...,:4])*(target),[-2,-3,-1])
 	print(loss_f(x0))
 
 	def train_step(x,update_gradients=True):
