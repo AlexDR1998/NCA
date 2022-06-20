@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 from NCA_class import *
-from NCA_utils import *
+
 
 ca = NCA(8)
 
