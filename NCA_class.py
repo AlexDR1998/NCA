@@ -1,6 +1,4 @@
 import numpy as np
-#import matplotlib.pyplot as plt
-#from matplotlib import image
 import silence_tensorflow.auto # shuts up tensorflow's spammy warning messages
 import tensorflow as tf
 import scipy as sp
