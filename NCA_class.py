@@ -1,6 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import image
+#import matplotlib.pyplot as plt
+#from matplotlib import image
 import silence_tensorflow.auto # shuts up tensorflow's spammy warning messages
 import tensorflow as tf
 import scipy as sp
@@ -554,8 +554,8 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	lr = 2e-3
 	#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
 	lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
-	trainer = tf.keras.optimizers.Adam(lr_sched)
-	#trainer = tf.keras.optimizers.RMSprop(lr_sched)
+	#trainer = tf.keras.optimizers.Adam(lr_sched)
+	trainer = tf.keras.optimizers.RMSprop(lr_sched)
 	
 	#--- Setup initial condition
 	
@@ -565,11 +565,11 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	x0 = np.copy(data[:])
 	x0[1:] = data[:-1] # Including 1 extra time slice to account for hidden 12h time
 	target = data[1:]
-	for i in range(target.shape[0]):
-		plt.imshow(target[i,0,...,:3])
-		plt.show()
-		plt.imshow(x0[i+1,0,...,:3])
-		plt.show()
+	#for i in range(target.shape[0]):
+	#	plt.imshow(target[i,0,...,:3])
+	#	plt.show()
+	#	plt.imshow(x0[i+1,0,...,:3])
+	#	plt.show()
 	print(x0.shape)
 	print(target.shape)
 
@@ -599,8 +599,9 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 		#return tf.reduce_mean(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.reduce_max(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.math.reduce_euclidean_norm(tf.boolean_mask(x[...,:4],loss_mask)-target,[-2,-3,-1])
-		return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
-	
+		#return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
+		#return tf.reduce_max(tf.square(x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
+		return -tf.reduce_sum(tf.math.l2_normalize(x[N_BATCHES:,...,:4])*(target),[-2,-3,-1])
 	print(loss_f(x0))
 
 	def train_step(x,update_gradients=True):
