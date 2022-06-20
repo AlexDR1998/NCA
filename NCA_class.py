@@ -552,8 +552,8 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	lr = 2e-3
 	#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
 	lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
-	#trainer = tf.keras.optimizers.Adam(lr_sched)
-	trainer = tf.keras.optimizers.RMSprop(lr_sched)
+	trainer = tf.keras.optimizers.Adam(lr_sched)
+	#trainer = tf.keras.optimizers.RMSprop(lr_sched)
 	
 	#--- Setup initial condition
 	
