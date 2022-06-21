@@ -3,8 +3,8 @@
 #$ -cwd
 #$ -l h_rt=8:00:00
 
-#$ -pe gpu 1
-#$ -l h_vmem=16G
+#$ -pe gpu-titanx 4
+#$ -l h_vmem=20G
 
 . /etc/profile.d/modules.sh
 

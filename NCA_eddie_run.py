@@ -14,6 +14,8 @@ data,mask = load_sequence_ensemble_average()#[:,:,:,::2,::2]
 data = data[:,:,::2,::2]
 mask = mask[:,::2,::2]
 
-
-ca = NCA(N_CHANNELS,ADHESION_MASK=mask)
-train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
+cfg = tf.ConfigProto()
+cfg.gpu_options.allow_growth = True
+with tf.Session(config=cfg) as sess:
+	ca = NCA(N_CHANNELS,ADHESION_MASK=mask)
+	train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
