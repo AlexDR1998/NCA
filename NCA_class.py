@@ -74,7 +74,8 @@ class NCA(tf.keras.Model):
 		lap = np.array([[0.25,0.5,0.25],
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
-		kernel = tf.stack([I,dx,dy,lap],-1)[:,:,None,:]
+		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
+		kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
 		kernel = tf.repeat(kernel,self.N_CHANNELS,2)
 		y = tf.nn.depthwise_conv2d(x,kernel,[1,1,1,1],"SAME")
 		
@@ -133,18 +134,18 @@ class NCA(tf.keras.Model):
 		x0 = x0[0:N_BATCHES] # If initial condition is too wide in batches dimension, reduce it
 		trajectory = np.zeros((T,N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS),dtype="float32")
 		
-		print("Trajectory shape: "+str(trajectory.shape))
-		print("x0 shape: "+str(x0.shape))
+		#print("Trajectory shape: "+str(trajectory.shape))
+		#print("x0 shape: "+str(x0.shape))
 		
 		if x0.shape[-1]<self.N_CHANNELS: # If x0 has less channels than the NCA, pad zeros to x0
 			z0 = np.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
 			x0 = np.concatenate((x0,z0),axis=-1)
 		assert trajectory[0].shape == x0.shape
-		print("x0 shape: "+str(x0.shape))
+		#print("x0 shape: "+str(x0.shape))
 		
 		
 		if ADHESION_MASK is not None:
-			print("Adhesion mask shape: "+str(ADHESION_MASK.shape))
+			#print("Adhesion mask shape: "+str(ADHESION_MASK.shape))
 			self.ADHESION_MASK=np.repeat(ADHESION_MASK[...,np.newaxis],self.N_CHANNELS,axis=-1)
 			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
 				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
@@ -152,14 +153,14 @@ class NCA(tf.keras.Model):
 		if self.ADHESION_MASK is not None:
 			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
 				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
-			print("Adhesion mask shape: "+str(self.ADHESION_MASK.shape))
+			#print("Adhesion mask shape: "+str(self.ADHESION_MASK.shape))
 			_mask = np.zeros((x0.shape),dtype="float32")
 			_mask[...,4]=1
-			print("Adhesion channel select mask shape: "+str(_mask.shape))
+			#print("Adhesion channel select mask shape: "+str(_mask.shape))
 			x0 = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*x0
 
-		print("Trajectory shape: "+str(trajectory.shape))
-		print("x0 shape: "+str(x0.shape))
+		#print("Trajectory shape: "+str(trajectory.shape))
+		#print("x0 shape: "+str(x0.shape))
 		trajectory[0] = x0
 		
 		for t in range(1,T):
@@ -547,8 +548,8 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	"""
 	data = data.astype("float32")
 	N_CHANNELS = ca.N_CHANNELS
-	print(np.max(data))
-	print(np.min(data))
+	#print(np.max(data))
+	#print(np.min(data))
 	lr = 2e-3
 	#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
 	lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
@@ -568,17 +569,17 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	#	plt.show()
 	#	plt.imshow(x0[i+1,0,...,:3])
 	#	plt.show()
-	print(x0.shape)
-	print(target.shape)
+	#print(x0.shape)
+	#print(target.shape)
 
 	T = data.shape[0]
 	z0 = np.zeros((x0.shape[0],x0.shape[1],x0.shape[2],x0.shape[3],N_CHANNELS-x0.shape[4]))
 	x0 = np.concatenate((x0,z0),axis=-1).astype("float32")
 	
 	x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
-	print(x0.shape)
+	#print(x0.shape)
 	target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
-	print(target.shape)
+	#print(target.shape)
 	x0_true = np.copy(x0)
 
 	if ca.ADHESION_MASK is not None:
@@ -600,7 +601,7 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 		return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
 		#return tf.reduce_max(tf.square(x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
 		#return -tf.reduce_sum(tf.math.l2_normalize(x[N_BATCHES:,...,:4])*(target),[-2,-3,-1])
-	print(loss_f(x0))
+	#print(loss_f(x0))
 
 	def train_step(x,update_gradients=True):
 		state_log = []
@@ -634,7 +635,7 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 
 	#--- Do training loop
 	for i in tqdm(range(TRAIN_ITERS)):
-
+		
 		x,mean_loss,losses = train_step(x0)#,i%4==0)
 		#if i>10:
 		#x0[N_BATCHES:2*N_BATCHES] = x[:N_BATCHES] # hidden 12h timeslice

@@ -11,6 +11,6 @@
 channels=$1
 filename=$2
 module load anaconda
-source activate mphys_python
-python ./NCA_eddie_run.py 4000 8 $1 "${channels} channel ${filename}"
+source activate nca_tensorflow
+python ./NCA_eddie_run.py 4000 8 $1 "${filename}_${channels}_channel"
 source deactivate
