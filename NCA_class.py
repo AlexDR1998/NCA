@@ -413,16 +413,33 @@ def tb_write_result(train_summary_writer,ca,x0):
 							 				 np.repeat(grids[i,:1,...,3:4],3,axis=-1)),
 							 				axis=1),
 							 step=i)
-	
-			tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
-							 grids[i,:1,...,4:7],
-							 #np.concatenate((grids[i,:1,...,4:7],
-							#				 grids[i,:1,...,7:10]),
-											 #grids[i,:1,...,10:13],
-											 #grids[i,:1,...,13:16],),
-							#  				axis=1),
-							 step=i,
-							 max_outputs=4)
+			if (ca.N_CHANNELS>=7) and (ca.N_CHANNELS <10):
+				tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
+								 grids[i,:1,...,4:7],step=i,
+							 	max_outputs=4)
+			elif ((ca.N_CHANNELS>=10) and (ca.N_CHANNELS <13)):
+				tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
+								 np.concatenate((grids[i,:1,...,4:7],
+												 grids[i,:1,...,7:10]),axis=1),
+								 step=i,
+							 	 max_outputs=4)
+			elif ((ca.N_CHANNELS>=13) and (ca.N_CHANNELS <16)):
+				tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
+								 np.concatenate((grids[i,:1,...,4:7],
+												 grids[i,:1,...,7:10],
+								 				 grids[i,:1,...,10:13]),axis=1),
+								 step=i,
+							 	 max_outputs=4)
+			elif (ca.N_CHANNELS>=16):
+				tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
+								 np.concatenate((grids[i,:1,...,4:7],
+												 grids[i,:1,...,7:10],
+								 				 grids[i,:1,...,10:13],
+								 				 grids[i,:1,...,13:16]),axis=1),
+								 step=i,
+							 	 max_outputs=4)				
+								
+							 
 	
 
 
