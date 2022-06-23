@@ -42,9 +42,9 @@ class NCA(tf.keras.Model):
 			self.ADHESION_MASK=None
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.001)),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L2(0.001)),
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.zeros_initializer)])
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
 		self(tf.zeros([1,3,3,N_CHANNELS])) # Dummy call to build the model
 		
 		print(self.dense_model.summary())
@@ -650,7 +650,7 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 		#print(loss.shape)
 		#--- Write to log
 		tb_training_loop_log_sequence(train_summary_writer,loss,ca,x,i,N_BATCHES)
-		
+	print("-------- Training complete ---------")
 	#--- Write resulting animation to tensorboard			
 	tb_write_result(train_summary_writer,ca,x0)
 
