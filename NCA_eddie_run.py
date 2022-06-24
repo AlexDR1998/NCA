@@ -1,4 +1,5 @@
 from NCA_class import *
+from NCA_train import *
 from NCA_utils import load_sequence_ensemble_average
 import numpy as np
 import sys
