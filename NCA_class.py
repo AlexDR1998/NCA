@@ -98,9 +98,9 @@ class NCA(tf.keras.Model):
 			x_new : float32 tensor
 				new state space of NCA, with (stochastically masked) update applied across all channels and batches
 		"""
-		print(x.shape)
+		#print(x.shape)
 		y = self.perceive(x)
-		print(y.shape)
+		#print(y.shape)
 		dx = self.dense_model(y)*step_size
 		if fire_rate is None:
 			fire_rate = self.FIRE_RATE

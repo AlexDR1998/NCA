@@ -8,13 +8,7 @@ import datetime
 """
 	Bunch of methods to train NCA to data, as well as logging the process via tensorboard
 	
-
 """
-
-
-
-
-
 
 
 
@@ -458,6 +452,8 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 
 
 	#--- Do training loop
+	best_mean_loss = 100000
+
 	for i in tqdm(range(TRAIN_ITERS)):
 		
 		x,mean_loss,losses = train_step(x0)#,i%4==0)
@@ -467,11 +463,16 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 		if N_BATCHES>1:
 			x0[::N_BATCHES][2:] = x0_true[::N_BATCHES][2:] # update one batch to contain the true initial conditions
 		
-		#print(mean_loss)
-		#print(losses)
+		#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
+		if (mean_loss<best_mean_loss) and (i>TRAIN_ITERS//10):
+			if model_filename is not None:
+				ca.save_wrapper(model_filename)
+				print("--- Model saved at "+str(i)+" epochs ---")
+			best_mean_loss = mean_loss
+
 		loss = np.hstack((mean_loss,losses))
 		
-		#print(loss.shape)
+		
 		#--- Write to log
 		tb_training_loop_log_sequence(train_summary_writer,loss,ca,x,i,N_BATCHES)
 	print("-------- Training complete ---------")
@@ -479,5 +480,5 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 	tb_write_result(train_summary_writer,ca,x0)
 
 	#--- If a filename is provided, save the trained NCA model.
-	if model_filename is not None:
-		ca.save_wrapper(model_filename)
+	#if model_filename is not None:
+	#	ca.save_wrapper(model_filename)
