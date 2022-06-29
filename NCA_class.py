@@ -72,7 +72,8 @@ class NCA(tf.keras.Model):
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
 		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
-		kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
+		#kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
+		kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
 		kernel = tf.repeat(kernel,self.N_CHANNELS,2)
 		y = tf.nn.depthwise_conv2d(x,kernel,[1,1,1,1],"SAME")
 		
