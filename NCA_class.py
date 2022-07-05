@@ -39,8 +39,8 @@ class NCA(tf.keras.Model):
 			self.ADHESION_MASK=None
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.01)),
+			#tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
 			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
 		self(tf.zeros([1,3,3,N_CHANNELS])) # Dummy call to build the model
 		
@@ -72,9 +72,9 @@ class NCA(tf.keras.Model):
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
 		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
-		#kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
+		kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
-		kernel = tf.stack([I,av],-1)[:,:,None,:]
+		#kernel = tf.stack([I,av],-1)[:,:,None,:]
 		kernel = tf.repeat(kernel,self.N_CHANNELS,2)
 		y = tf.nn.depthwise_conv2d(x,kernel,[1,1,1,1],"SAME")
 		

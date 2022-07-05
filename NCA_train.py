@@ -337,7 +337,7 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 
 
 
-def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
+def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None,REG_COEFF=1):
 	"""
 		Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 		
@@ -358,7 +358,8 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 			log at :	'logs/gradient_tape/model_filename/train'
 			model at : 	'models/model_filename'
 			if None, doesn't save model but still saves log to 'logs/gradient_tape/*current_time*/train'
-
+		REG_COEFF : float32
+			Strength of intermediate state regulariser - penalises any pixels outwith [0,1]
 		
 		Returns
 		-------
@@ -416,10 +417,19 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 		#return tf.reduce_mean(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.reduce_max(tf.square(x[...,:4]-target),[-2, -3, -1])
 		#return tf.math.reduce_euclidean_norm(tf.boolean_mask(x[...,:4],loss_mask)-target,[-2,-3,-1])
-		return tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
+		
+		eu = tf.math.reduce_euclidean_norm((x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
+		return tf.reduce_mean(tf.reshape(eu,(-1,N_BATCHES)),-1)
 		#return tf.reduce_max(tf.square(x[N_BATCHES:,...,:4]-target),[-2,-3,-1])
 		#return -tf.reduce_sum(tf.math.l2_normalize(x[N_BATCHES:,...,:4])*(target),[-2,-3,-1])
-	#print(loss_f(x0))
+		"""
+		kl = tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.NONE)
+		average = tf.reduce_mean(kl(target,x[N_BATCHES:,...,:4]),[-2,-1])
+		kl_reshape = tf.reshape(average,[-1,N_BATCHES])
+		return tf.reduce_mean(kl_reshape,-1)
+		"""
+		
+	print(loss_f(x0))
 
 	def train_step(x,update_gradients=True):
 		state_log = []
@@ -429,12 +439,17 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None):
 			#g.watch(state_log)
 			#g.watch(x)
 			#print(times)
+			reg_log = []
 			for i in range(iter_n):
 				x = ca(x)
 				if ca.ADHESION_MASK is not None:
 					x = _mask*ca.ADHESION_MASK + (1-_mask)*x
+				#--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
+				reg_log.append(max(( max(np.max(x),1)-1),
+								   (-min(np.min(x),0))))
 			losses = loss_f(x) 
-			mean_loss = tf.reduce_mean(losses)
+			reg_loss = tf.cast(tf.reduce_mean(reg_log),tf.float32)
+			mean_loss = tf.reduce_mean(losses) + REG_COEFF*reg_loss
 					
 					
 			
