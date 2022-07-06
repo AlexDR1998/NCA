@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N NCA_train
+#$ -N firerate_sweep
 #$ -cwd
 #$ -l h_rt=2:00:00
 
