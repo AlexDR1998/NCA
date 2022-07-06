@@ -8,9 +8,9 @@
 
 . /etc/profile.d/modules.sh
 
-channels=$1
+fire_rate=$1
 filename=$2
 module load anaconda
 source activate nca_tensorflow
-python ./NCA_eddie_run.py 4000 16 $1 50 "${filename}_${channels}_channel"
+python ./NCA_eddie_run.py 4000 16 7 $1 "${filename}_${fire_rate}_rate_7_channel"
 source deactivate
