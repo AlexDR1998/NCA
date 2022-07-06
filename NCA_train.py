@@ -158,13 +158,13 @@ def tb_training_loop_log_sequence(train_summary_writer,loss,ca,x,i,N_BATCHES):
 			#print(ca.dense_model.layers[0].get_weights()[0])
 			model_params_0 = ca.dense_model.layers[0].get_weights()
 			model_params_1 = ca.dense_model.layers[1].get_weights()
-			model_params_2 = ca.dense_model.layers[2].get_weights()
+			#model_params_2 = ca.dense_model.layers[2].get_weights()
 			tf.summary.histogram('Layer 0 weights',model_params_0[0],step=i)
 			tf.summary.histogram('Layer 1 weights',model_params_1[0],step=i)
-			tf.summary.histogram('Layer 2 weights',model_params_2[0],step=i)
+			#tf.summary.histogram('Layer 2 weights',model_params_2[0],step=i)
 			tf.summary.histogram('Layer 0 biases',model_params_0[1],step=i)
 			tf.summary.histogram('Layer 1 biases',model_params_1[1],step=i)
-			tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
+			#tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
 
 
 def tb_training_loop_log_single(train_summary_writer,loss,ca,x,i):
