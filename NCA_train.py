@@ -310,7 +310,7 @@ def train(ca,target,N_BATCHES,TRAIN_ITERS,x0=None,iter_n=50,model_filename=None)
 			for i in range(iter_n):
 				x = ca(x)
 				if ca.ADHESION_MASK is not None:
-					x = _mask*ca.ADHESION_MASK + (1-_mask)*x
+					x = _mask*ca.ADHESION_MASK + (1-_mask)*ca.DECAY_MASK*x
 			loss = tf.reduce_mean(loss_f(x))
 		grads = g.gradient(loss,ca.weights)
 		grads = [g/(tf.norm(g)+1e-8) for g in grads]
@@ -367,6 +367,7 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None,REG_
 	"""
 	data = data.astype("float32")
 	N_CHANNELS = ca.N_CHANNELS
+	
 	#print(np.max(data))
 	#print(np.min(data))
 	lr = 2e-3
@@ -396,18 +397,19 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None,REG_
 	x0 = np.concatenate((x0,z0),axis=-1).astype("float32")
 	
 	x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
-	#print(x0.shape)
 	target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
-	#print(target.shape)
 	x0_true = np.copy(x0)
-
+	print(x0.shape)
 	if ca.ADHESION_MASK is not None:
 		_mask = np.zeros((x0.shape),dtype="float32")
 		_mask[...,4]=1
 
 
-
-
+	DECAY_MASK = np.ones(_mask.shape)
+	DECAY_MASK[...,5:]*=ca.DECAY_FACTOR
+	DECAY_MASK = tf.cast(DECAY_MASK,tf.float32)
+	print(ca.ADHESION_MASK.shape)
+	print(_mask.shape)
 	#loss_mask = np.ones(x0.shape[0]).astype(bool)
 	#loss_mask[:N_BATCHES] = 0
 	#print(loss_mask)
@@ -434,19 +436,18 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None,REG_
 	def train_step(x,update_gradients=True):
 		state_log = []
 		with tf.GradientTape() as g:
-			#times = [24,36,48]
-			#times = np.linspace(0,iter_n,num=5,endpoint=True,dtype=int)[2:]
-			#g.watch(state_log)
-			#g.watch(x)
-			#print(times)
 			reg_log = []
 			for i in range(iter_n):
 				x = ca(x)
 				if ca.ADHESION_MASK is not None:
-					x = _mask*ca.ADHESION_MASK + (1-_mask)*x
+					x = _mask*ca.ADHESION_MASK + (1-_mask)*DECAY_MASK*x
+				else:
+					x = DECAY_MASK*x
+				
 				#--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
 				reg_log.append(max(( max(np.max(x),1)-1),
-								   (-min(np.min(x),0))))
+								   ( 1000*max(-np.min(x),0))))
+				#### Negative values of x are especially penalised.
 			losses = loss_f(x) 
 			reg_loss = tf.cast(tf.reduce_mean(reg_log),tf.float32)
 			mean_loss = tf.reduce_mean(losses) + REG_COEFF*reg_loss
@@ -472,8 +473,6 @@ def train_sequence(ca,data,N_BATCHES,TRAIN_ITERS,iter_n,model_filename=None,REG_
 	for i in tqdm(range(TRAIN_ITERS)):
 		
 		x,mean_loss,losses = train_step(x0)#,i%4==0)
-		#if i>10:
-		#x0[N_BATCHES:2*N_BATCHES] = x[:N_BATCHES] # hidden 12h timeslice
 		x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
 		if N_BATCHES>1:
 			x0[::N_BATCHES][2:] = x0_true[::N_BATCHES][2:] # update one batch to contain the true initial conditions
