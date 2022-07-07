@@ -22,7 +22,7 @@ import sys
 training_iters = int(sys.argv[1])
 N_BATCHES = int(sys.argv[2])
 N_CHANNELS= int(sys.argv[3])
-FIRE_RATE = float(sys.argv[4])/100.0
+FIRE_RATE = float(sys.argv[4])/20.0
 filename = sys.argv[5]
 
 data,mask = load_sequence_ensemble_average()#[:,:,:,::2,::2]
