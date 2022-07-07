@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N firerate_sweep
+#$ -N decayrate_sweep
 #$ -cwd
 #$ -l h_rt=2:00:00
 
@@ -8,9 +8,9 @@
 
 . /etc/profile.d/modules.sh
 
-fire_rate=$1
+decay_rate=$1
 filename=$2
 module load anaconda
 source activate nca_tensorflow
-python ./NCA_eddie_run.py 4000 16 7 $1 20 "${filename}_${fire_rate}_rate_7_channel"
+python ./NCA_eddie_run.py 4000 16 7 20 $1 "${filename}_${decay_rate}_decay_7_channel"
 source deactivate

@@ -15,15 +15,18 @@ import sys
 	N_CHANNELS : int 
 		How many channels for the NCA (must be at least 4/5 without/with mask)
 	FIRE_RATE : int
-		Stochastic fire rate - give nubmer between 1 and 100, is then divided by 100
+		Stochastic fire rate - give nubmer between 1 and 20, is then divided by 20
 		Basically just to avoid doing maths in bash script
-
+	DECAY_FACTOR : int
+		Hidden channel decay rate - similar to above, give int between 1 and 20
+		as cba doing bash maths
 """
 training_iters = int(sys.argv[1])
 N_BATCHES = int(sys.argv[2])
 N_CHANNELS= int(sys.argv[3])
 FIRE_RATE = float(sys.argv[4])/20.0
-filename = sys.argv[5]
+DECAY_FACTOR = float(sys.argv[5])/20.0
+filename = sys.argv[6]
 
 data,mask = load_sequence_ensemble_average()#[:,:,:,::2,::2]
 data = data[:,:,::2,::2]
@@ -32,5 +35,5 @@ mask = mask[:,::2,::2]
 #cfg = tf.ConfigProto()
 #cfg.gpu_options.allow_growth = True
 #with tf.Session(config=cfg) as sess:
-ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,ADHESION_MASK=mask)
+ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,DECAY_FACTOR=DECAY_FACTOR,ADHESION_MASK=mask)
 train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
