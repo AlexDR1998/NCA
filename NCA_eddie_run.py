@@ -42,5 +42,5 @@ print(ca)
 print("Saving to "+str(filename))
 for i in range(N_MODELS):
 	trainer = NCA_Trainer(ca,data,N_BATCHES,filename+"_b"+str(i))
-	trainer.train_sequence(training_iters,24,filename+"_b"+str(i))
+	trainer.train_sequence(training_iters,24)
 #train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
