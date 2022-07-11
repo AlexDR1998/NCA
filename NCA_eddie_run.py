@@ -26,6 +26,7 @@ N_BATCHES = int(sys.argv[2])
 N_CHANNELS= int(sys.argv[3])
 FIRE_RATE = float(sys.argv[4])/20.0
 DECAY_FACTOR = float(sys.argv[5])/20.0
+N_MODELS = 4 # How many models to train for given parameters
 filename = sys.argv[6]
 
 data,mask = load_sequence_ensemble_average()#[:,:,:,::2,::2]
@@ -36,4 +37,7 @@ mask = mask[:,::2,::2]
 #cfg.gpu_options.allow_growth = True
 #with tf.Session(config=cfg) as sess:
 ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,DECAY_FACTOR=DECAY_FACTOR,ADHESION_MASK=mask)
-train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
+for i in range(N_MODELS):
+	trainer = NCA_Trainer(ca,data,N_BATCHES,filename+"b"+str(i))
+	trainer.train_sequence(training_iters,24,filename+"b"+str(i))
+#train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
