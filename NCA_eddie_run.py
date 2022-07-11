@@ -36,8 +36,11 @@ mask = mask[:,::2,::2]
 #cfg = tf.ConfigProto()
 #cfg.gpu_options.allow_growth = True
 #with tf.Session(config=cfg) as sess:
+print("Training NCA with parameters:")
 ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,DECAY_FACTOR=DECAY_FACTOR,ADHESION_MASK=mask)
+print(ca)
+print("Saving to "+str(filename))
 for i in range(N_MODELS):
-	trainer = NCA_Trainer(ca,data,N_BATCHES,filename+"b"+str(i))
-	trainer.train_sequence(training_iters,24,filename+"b"+str(i))
+	trainer = NCA_Trainer(ca,data,N_BATCHES,filename+"_b"+str(i))
+	trainer.train_sequence(training_iters,24,filename+"_b"+str(i))
 #train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
