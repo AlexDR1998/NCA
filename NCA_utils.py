@@ -15,6 +15,29 @@ import scipy as sp
 
 #impath = "../Data/time_course_disk_4channel/lowres_zsum/"
 impath = "../Data/time_course_disk_4channel/lowres_zmax/"
+impath_emojis = "../Data/Emojis/"
+
+def load_emoji_sequence(filename_sequence,downsample=2):
+  """
+    Loads a sequence of images in impath_emojis
+    Parameters
+    ----------
+    filename_sequence : list of strings
+      List of names of files to load
+    downsample : int
+      How much to downsample the resolution - highres takes ages
+
+    Returns
+    -------
+    images : float32 array [T,1,size,size,C]
+      Timesteps of T RGB/RGBA images. Dummy index of 1 for number of batches
+  """
+  images = []
+  for filename in filename_sequence:
+    im = skimage.io.imread(impath_emojis+filename)[::downsample,::downsample]
+    im = im[np.newaxis] / 255.0
+    images.append(im)
+  return np.array(images)
 
 def load_sequence_A(name):
   """
@@ -44,7 +67,6 @@ def load_sequence_A(name):
   #I_60h = I_60h[np.newaxis]/np.max(I_60h,axis=(0,1))
   data = np.stack((I_0h,I_24h,I_36h,I_48h))
   return data
-
 
 def load_sequence_B(name):
   """
@@ -99,7 +121,7 @@ def load_sequence_batch(N_BATCHES):
     data_batches = np.concatenate((data_batches,load_sequence_A(names_selected[i])),axis=1)
   return data_batches
 
-def load_sequence_ensemble_average(masked=True):
+def load_sequence_ensemble_average(masked=True,rscale=1.0):
   """
     Loads all image sequences and averages across them,
     to create image sequence of ensemble averages
@@ -109,9 +131,14 @@ def load_sequence_ensemble_average(masked=True):
     masked : boolean
       controls whether to apply the adhesion mask to the data
 
+    rscale : float32
+      scales how much bigger or smaller the radius of the mask is
+
     Returns
     -------
     data : float32 array [T,size,size,4]
+
+    mask : boolean array [size,size]
   """
 
   """
@@ -136,7 +163,7 @@ def load_sequence_ensemble_average(masked=True):
   
   data = np.stack((I_0h,I_24h,I_36h,I_48h))
   if masked:
-    mask = adhesion_mask(data)
+    mask = adhesion_mask(data,rscale)
     zs = np.zeros(data.shape)
     data = np.where(np.repeat(np.repeat(mask[np.newaxis],4,axis=0)[:,:,:,:,np.newaxis],4,axis=-1),data,zs)
     return data, mask
@@ -144,7 +171,7 @@ def load_sequence_ensemble_average(masked=True):
     return data
 
 
-def adhesion_mask(data):
+def adhesion_mask(data,rscale=1.0):
   """
     Given data output from load_sequence_*, returns a binary mask representing the circle where cells can adhere
     
@@ -152,6 +179,9 @@ def adhesion_mask(data):
     ----------
     data : float32 array [T,1,size,size,4]
       timesteps (T) of RGBA images. Dummy index of 1 for number of batches
+
+    rscale : float32
+      scales how much bigger or smaller the radius of the mask is
 
     Returns
     -------
@@ -180,6 +210,8 @@ def adhesion_mask(data):
 
   x0, y0, r = sp.optimize.fmin(cost, (x0, y0, r))
   mask = np.zeros(k.shape,dtype="float32")
+  
+  r*=rscale
   for i in range(mask.shape[0]):
     for j in range(mask.shape[1]):
       mask[i,j] = (i-x0)**2+(j-y0)**2<r**2
