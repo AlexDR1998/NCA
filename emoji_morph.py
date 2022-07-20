@@ -12,7 +12,7 @@ N_BATCHES=4
 index=int(sys.argv[1])
 
 
-def train_emoji_sequence(filename_sequence,model_filename,downsample):
+def train_emoji_sequence(filename_sequence,model_filename,downsample=1):
 	data = load_emoji_sequence(filename_sequence,downsample)
 	ca = NCA(N_CHANNELS)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
