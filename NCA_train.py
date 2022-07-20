@@ -4,7 +4,7 @@ import tensorflow as tf
 #import scipy as sp
 from tqdm import tqdm
 import datetime
-import matplotlib.pyplot as plt
+
 
 
 
