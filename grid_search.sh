@@ -10,7 +10,7 @@
 
 
 index=$1
-
+filename=$2
 
 module load anaconda
 source activate nca_tensorflow
