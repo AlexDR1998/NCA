@@ -304,7 +304,7 @@ class NCA_Trainer(object):
 				Training step. Runs NCA model once, calculates loss gradients and tweaks model
 			"""
 
-			state_log = []
+			
 			with tf.GradientTape() as g:
 				reg_log = []
 				for i in range(iter_n):
