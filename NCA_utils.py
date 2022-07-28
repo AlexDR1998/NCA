@@ -8,6 +8,10 @@ import json
 import requests
 import numpy as np
 import scipy as sp
+from tensorflow.core.util import event_pb2
+from tensorflow.python.lib.io import tf_record
+from tensorflow.python.framework import tensor_util
+
 
 """
   Utilities and helper functions to handle loading and preprocessing of data
@@ -16,6 +20,46 @@ import scipy as sp
 #impath = "../Data/time_course_disk_4channel/lowres_zsum/"
 impath = "../Data/time_course_disk_4channel/lowres_zmax/"
 impath_emojis = "../Data/Emojis/"
+
+
+
+
+def load_loss_log(summary_dir):
+  """
+    Returns the loss logged in tensorboard as an array
+
+    Parameters
+    ----------
+    summary_dir : string
+      The directory where the tensorboard log is stored
+
+    Returns
+    -------
+      steps : array ints
+        timesteps
+      losses : array float32
+        losses at timesteps
+  """
+  def my_summary_iterator(path):
+    for r in tf_record.tf_record_iterator(path):
+      yield event_pb2.Event.FromString(r)
+  steps = []
+  losses =[]
+  
+  
+  
+  for filename in os.listdir(summary_dir):
+    if filename!="plugins":
+      path = os.path.join(summary_dir, filename)
+      for event in my_summary_iterator(path):
+        for value in event.summary.value:
+          if value.tag=="Mean Loss":
+            t = tensor_util.MakeNdarray(value.tensor)
+            steps.append(event.step)
+            losses.append(t)
+  return steps,losses
+
+
 
 def load_emoji_sequence(filename_sequence,downsample=2):
   """

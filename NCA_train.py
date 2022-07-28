@@ -180,16 +180,19 @@ class NCA_Trainer(object):
 								 step=i)
 				"""
 				#print(ca.dense_model.layers[0].get_weights()[0])
-				model_params_0 = self.NCA_model.dense_model.layers[0].get_weights()
+				for n in range(self.NCA_model.N_layers):
+					model_params = self.NCA_model.dense_model.layers[n].get_weights()
+					tf.summary.histogram('Layer '+str(n)+' weights',model_params[0],step=i)
+					tf.summary.histogram('Layer '+str(n)+' biases',model_params[1],step=i)
+				
+				"""
 				model_params_1 = self.NCA_model.dense_model.layers[1].get_weights()
 				model_params_2 = self.NCA_model.dense_model.layers[2].get_weights()
-				tf.summary.histogram('Layer 0 weights',model_params_0[0],step=i)
 				tf.summary.histogram('Layer 1 weights',model_params_1[0],step=i)
 				tf.summary.histogram('Layer 2 weights',model_params_2[0],step=i)
-				tf.summary.histogram('Layer 0 biases',model_params_0[1],step=i)
 				tf.summary.histogram('Layer 1 biases',model_params_1[1],step=i)
 				tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
-
+				"""
 	def tb_write_result(self,iter_n):
 		"""
 			Log final trained behaviour of NCA model to tensorboard
