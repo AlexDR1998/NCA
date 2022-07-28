@@ -41,6 +41,6 @@ ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,DECAY_FACTOR=DECAY_FACTOR,ADHESION_MASK=
 print(ca)
 print("Saving to "+str(filename))
 for i in range(N_MODELS):
-	trainer = NCA_Trainer(ca,data,N_BATCHES,filename+"_b"+str(i))
+	trainer = NCA_Trainer_stem_cells(ca,data,N_BATCHES,filename+"_b"+str(i))
 	trainer.train_sequence(training_iters,24)
 #train_sequence(ca,data,N_BATCHES,training_iters,24,filename)
