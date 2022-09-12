@@ -24,18 +24,18 @@ def main():
 							  "lizard_1f98e.png",
 							  "rooster_1f413.png"],
 							  "emoji_sequence_2layer_isotropic_mushroom_lizard_rooster_eddie")
-	"""
+	
 	if index==2:
-		train_emoji_sequence(["skull_1f480.png",
-							  "rainbow_1f308.png",
-							  "rainbow_1f308.png"],
-							  "emoji_sequence_skull_rainbow_stable_eddie")
-	"""
+		train_emoji_sequence(["crab.png",
+							  "alien_monster.png",
+							  "butterfly.png"],
+							  "emoji_sequence_2layer_isotropic_crab_alien_butterfly_eddie")
+	
 	if index==3:
-		train_emoji_sequence(["skull_1f480.png",
-							  "rainbow_1f308.png",
-							  "skull_1f480.png"],
-							  "emoji_sequence_2layer_isotropic_skull_rainbow_skull_eddie")
+		train_emoji_sequence(["butterfly.png",
+							  "microbe.png",
+							  "eye.png"],
+							  "emoji_sequence_2layer_isotropic_butterfly_microbe_eye_eddie")
 
 	#make_video_file("emoji_sequence_1layer_skull_rainbow_skull_eddie")
 	#visualise_distance_to_target("emoji_sequence_mushroom_lizard_rooster_eddie")
