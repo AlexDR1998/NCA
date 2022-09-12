@@ -14,7 +14,7 @@ class NCA(tf.keras.Model):
 	"""
 
 
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,DECAY_FACTOR=1.0,ADHESION_MASK=None):
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -24,8 +24,6 @@ class NCA(tf.keras.Model):
 				Number of channels to include - first 4 are visible as RGBA, others are hidden
 			FIRE_RATE : float in [0,1]
 				Controls stochasticity of cell updates, at 1 all cells update every step, at 0 no cells update
-			DECAY_FACTOR : float in [0,1]
-				Controls how quickly hidden channel values degrade over time. 1 = no decay, 0 = instant decay
 			ADHESION_MASK : boolean array [size,size] optional
 				A binary mask indicating the presence of the adesive micropattern surface
 		"""
@@ -35,7 +33,7 @@ class NCA(tf.keras.Model):
 		super(NCA,self).__init__()
 		self.N_CHANNELS=N_CHANNELS # RGBA +hidden layers
 		self.FIRE_RATE=FIRE_RATE # controls stochastic updates - i.e. grid isn't globaly synchronised
-		self.DECAY_FACTOR=DECAY_FACTOR
+
 
 
 
@@ -45,7 +43,6 @@ class NCA(tf.keras.Model):
 		else:
 			self.ADHESION_MASK=None
 			ones = tf.ones(4)
-			decay = tf.ones(N_CHANNELS-4)*self.DECAY_FACTOR
 
 		
 		#--- Set up dense nn for perception vector
@@ -58,13 +55,13 @@ class NCA(tf.keras.Model):
 		#--- Set up convolution kernels
 		_i = np.array([0,1,0],dtype=np.float32)
 		I  = np.outer(_i,_i)
-		dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
-		dy = dx.T
+		#dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
+		#dy = dx.T
 		lap = np.array([[0.25,0.5,0.25],
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
 		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
-		kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
+		kernel = tf.stack([I,lap,av],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av],-1)[:,:,None,:]
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
@@ -90,7 +87,6 @@ class NCA(tf.keras.Model):
 		print("_________________________________________________________________________________")
 		print("Stochastic firing rate:         {fr}".format(fr=self.FIRE_RATE))
 		print("Number of hidden channels:      {hc}".format(hc=self.N_CHANNELS))
-		print("Hidden channel decay factor:    {df}".format(df=self.DECAY_FACTOR))
 		print("_________________________________________________________________________________")
 		print("		Neural Network update function:")
 
@@ -196,7 +192,7 @@ class NCA(tf.keras.Model):
 			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
 				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
 			ones = np.ones(5)
-			decay = np.ones(self.N_CHANNELS-5)*self.DECAY_FACTOR
+			
 		if self.ADHESION_MASK is not None:
 			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
 				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
@@ -204,31 +200,19 @@ class NCA(tf.keras.Model):
 			_mask[...,4]=1
 			x0 = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*x0
 			ones = np.ones(5)
-			decay = np.ones(self.N_CHANNELS-5)*self.DECAY_FACTOR
+			
 		if self.ADHESION_MASK is None:
 			ones = np.ones(4)
-			decay = np.ones(self.N_CHANNELS-4)*self.DECAY_FACTOR
+			
 		trajectory[0] = x0
 		
 
-		decay_mask_single = np.concatenate((ones,decay),axis=0)
-		_decay_mask = decay_mask_single[np.newaxis,np.newaxis,np.newaxis]
-		self.DECAY_MASK = tf.cast(np.tile(_decay_mask,(N_BATCHES,TARGET_SIZE,TARGET_SIZE,1)),dtype=tf.float32)
-		"""
-		print("Decay mask shape:")
-		print(self.decay_mask.shape)
-		print("Hidden decay rate:")
-		print(self.decay_mask[...,6])
-		print("Observable decay rate:")
-		print(self.decay_mask[...,0])
-		"""
+		
 		#--- Run T iterations of NCA
 		for t in range(1,T):
 			trajectory[t] = self.call(trajectory[t-1])
 			if self.ADHESION_MASK is not None:
-				trajectory[t] = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*self.DECAY_MASK*trajectory[t]
-			else:
-				trajectory[t] = self.DECAY_MASK*trajectory[t]
+				trajectory[t] = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*trajectory[t]
 		
 		return trajectory
 
@@ -236,8 +220,7 @@ class NCA(tf.keras.Model):
 	
 	def get_config(self):
 		return {"N_CHANNELS":self.N_CHANNELS,
-				"FIRE_RATE": self.FIRE_RATE,
-				"DECAY_FACTOR":self.DECAY_FACTOR}
+				"FIRE_RATE": self.FIRE_RATE}
 				#"ADHESION_MASK":self.ADHESION_MASK,
 				#"dense_model":self.dense_model}
 	

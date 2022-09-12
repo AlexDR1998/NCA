@@ -295,9 +295,7 @@ class NCA_Trainer(object):
 			print(_mask.shape)
 			print(self.NCA_model.ADHESION_MASK.shape)
 
-		DECAY_MASK = np.ones(self.x0.shape)
-		DECAY_MASK[...,5:]*=self.NCA_model.DECAY_FACTOR
-		DECAY_MASK = tf.cast(DECAY_MASK,tf.float32)
+		
 
 
 		
@@ -313,9 +311,7 @@ class NCA_Trainer(object):
 				for i in range(iter_n):
 					x = self.NCA_model(x)
 					if self.NCA_model.ADHESION_MASK is not None:
-						x = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*DECAY_MASK*x
-					else:
-						x = DECAY_MASK*x
+						x = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*x
 					
 					#--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
 					above_1 = tf.math.maximum(tf.reduce_max(x),1) - 1
@@ -575,9 +571,7 @@ class NCA_Trainer_stem_cells(NCA_Trainer):
 			print(_mask.shape)
 			print(self.NCA_model.ADHESION_MASK.shape)
 
-		DECAY_MASK = np.ones(self.x0.shape)
-		DECAY_MASK[...,5:]*=self.NCA_model.DECAY_FACTOR
-		DECAY_MASK = tf.cast(DECAY_MASK,tf.float32)
+
 
 
 		
@@ -593,9 +587,8 @@ class NCA_Trainer_stem_cells(NCA_Trainer):
 				for i in range(iter_n):
 					x = self.NCA_model(x)
 					if self.NCA_model.ADHESION_MASK is not None:
-						x = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*DECAY_MASK*x
-					else:
-						x = DECAY_MASK*x
+						x = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*x
+
 					
 					#--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
 					above_1 = tf.math.maximum(tf.reduce_max(x),1) - 1

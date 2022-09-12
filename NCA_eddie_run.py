@@ -25,9 +25,8 @@ training_iters = int(sys.argv[1])
 N_BATCHES = int(sys.argv[2])
 N_CHANNELS= int(sys.argv[3])
 FIRE_RATE = float(sys.argv[4])/20.0
-DECAY_FACTOR = float(sys.argv[5])/20.0
 N_MODELS = 4 # How many models to train for given parameters
-filename = sys.argv[6]
+filename = sys.argv[5]
 
 data,mask = load_sequence_ensemble_average()#[:,:,:,::2,::2]
 data = data[:,:,::2,::2]
@@ -37,7 +36,7 @@ mask = mask[:,::2,::2]
 #cfg.gpu_options.allow_growth = True
 #with tf.Session(config=cfg) as sess:
 print("Training NCA with parameters:")
-ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,DECAY_FACTOR=DECAY_FACTOR,ADHESION_MASK=mask)
+ca = NCA(N_CHANNELS,FIRE_RATE=FIRE_RATE,ADHESION_MASK=mask)
 print(ca)
 print("Saving to "+str(filename))
 for i in range(N_MODELS):
