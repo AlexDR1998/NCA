@@ -7,7 +7,7 @@ import sys
 
 
 N_CHANNELS=16
-N_BATCHES=4
+N_BATCHES=8
 index=int(sys.argv[1])
 
 
@@ -15,7 +15,7 @@ def train_emoji_sequence(filename_sequence,model_filename,downsample=2):
 	data = load_emoji_sequence(filename_sequence,downsample)
 	ca = NCA(N_CHANNELS)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
-	trainer.train_sequence(4000,60)
+	trainer.train_sequence(8000,60)
 
 
 def main():
