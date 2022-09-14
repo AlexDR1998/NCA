@@ -47,8 +47,11 @@ class NCA(tf.keras.Model):
 		
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			#tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			#tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=tf.nn.swish,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=None,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=None,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+
 			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
 
 		self.N_layers = 2
