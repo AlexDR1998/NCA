@@ -183,7 +183,10 @@ class NCA_Trainer(object):
 				for n in range(self.NCA_model.N_layers):
 					model_params = self.NCA_model.dense_model.layers[n].get_weights()
 					tf.summary.histogram('Layer '+str(n)+' weights',model_params[0],step=i)
-					tf.summary.histogram('Layer '+str(n)+' biases',model_params[1],step=i)
+					try:
+						tf.summary.histogram('Layer '+str(n)+' biases',model_params[1],step=i)
+					except Exception as e:
+						pass
 				
 				"""
 				model_params_1 = self.NCA_model.dense_model.layers[1].get_weights()
