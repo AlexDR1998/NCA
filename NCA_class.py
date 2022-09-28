@@ -269,7 +269,7 @@ class NCA_sigmoid_2layer(NCA):
 	"""
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+		super(NCA_sigmoid_2layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
 
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
@@ -294,7 +294,7 @@ class NCA_sigmoid_1layer(NCA):
 	"""
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+		super(NCA_sigmoid_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
 
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
@@ -315,7 +315,7 @@ class NCA_swish_2layer(NCA):
 	"""
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+		super(NCA_swish_2layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
 
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
@@ -340,7 +340,7 @@ class NCA_swish_1layer(NCA):
 	"""
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+		super(NCA_swish_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
 
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
@@ -361,7 +361,7 @@ class NCA_linear_1layer(NCA):
 	"""
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+		super(NCA_linear_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
 
 		#--- Set up dense nn for perception vector
 		self.dense_model = tf.keras.Sequential([
