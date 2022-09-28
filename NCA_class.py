@@ -16,7 +16,7 @@ class NCA(tf.keras.Model):
 	"""
 
 
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="swish",LAYERS=2):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -28,6 +28,8 @@ class NCA(tf.keras.Model):
 				Controls stochasticity of cell updates, at 1 all cells update every step, at 0 no cells update
 			ADHESION_MASK : boolean array [size,size] optional
 				A binary mask indicating the presence of the adesive micropattern surface
+			ACTIVATION : string optional
+				String corresponding to tensorflow activation functions
 		"""
 
 
@@ -35,7 +37,8 @@ class NCA(tf.keras.Model):
 		super(NCA,self).__init__()
 		self.N_CHANNELS=N_CHANNELS # RGBA +hidden layers
 		self.FIRE_RATE=FIRE_RATE # controls stochastic updates - i.e. grid isn't globaly synchronised
-
+		self.N_layers = LAYERS
+		self.ACTIVATION = ACTIVATION
 
 
 
@@ -48,22 +51,30 @@ class NCA(tf.keras.Model):
 
 		
 		#--- Set up dense nn for perception vector - removed and added to subclasses
-		"""
-		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
-								   activation=tf.nn.swish,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
-								   activation=tf.nn.swish,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-			#tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,activation=None,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
-			#tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=None,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
+		
+		
+		if LAYERS==2:
+			self.dense_model = tf.keras.Sequential([
+				tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+									   activation=ACTIVATION,
+									   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+									   use_bias=False),
+				tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
+									   activation=ACTIVATION,
+									   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+									   use_bias=False),
+				tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+		
+		elif LAYERS==1:
+			self.dense_model = tf.keras.Sequential([
+				tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+									   activation=ACTIVATION,
+									   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+									   use_bias=False),
+				tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+		
 
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-		"""
-		self.N_layers = 2
+
 		#--- Set up convolution kernels
 		_i = np.array([0,1,0],dtype=np.float32)
 		I  = np.outer(_i,_i)
@@ -77,7 +88,8 @@ class NCA(tf.keras.Model):
 		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av],-1)[:,:,None,:]
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
-
+		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+		print(self.dense_model.summary())
 	
 	
 	def __str__(self):
@@ -89,6 +101,7 @@ class NCA(tf.keras.Model):
 		print("_________________________________________________________________________________")
 		print("Stochastic firing rate:         {fr}".format(fr=self.FIRE_RATE))
 		print("Number of hidden channels:      {hc}".format(hc=self.N_CHANNELS))
+		print("Activation function: 		   {ac}".format(ac=self.ACTIVATION))
 		print("_________________________________________________________________________________")
 		print("		Neural Network update function:")
 
@@ -254,12 +267,12 @@ class NCA(tf.keras.Model):
 	Below are subclasses of the NCA class with specific activation functions and network architectures
 
 """
-
+"""
 
 class NCA_sigmoid_2layer(NCA):
-	"""
-		Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
-	"""
+	
+		#Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
+	
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
 		super(NCA_sigmoid_2layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
@@ -281,11 +294,20 @@ class NCA_sigmoid_2layer(NCA):
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
 		print(self.dense_model.summary())
 
+	def run(self,*args,**kwargs):
+		return super().run(*args,**kwargs)
+
+	#def call(self,*args,**kwargs):
+	#	return super().call(*args,**kwargs)
+
+	#def call(self,*args,**kwargs):
+	#	return super().call(*args,**kwargs)
+
 
 class NCA_sigmoid_1layer(NCA):
-	"""
+	
 		Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
-	"""
+	
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
 		super(NCA_sigmoid_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
@@ -304,9 +326,9 @@ class NCA_sigmoid_1layer(NCA):
 		print(self.dense_model.summary())
 
 class NCA_swish_2layer(NCA):
-	"""
+	
 		Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
-	"""
+	
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
 		super(NCA_swish_2layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
@@ -329,9 +351,9 @@ class NCA_swish_2layer(NCA):
 		print(self.dense_model.summary())
 
 class NCA_swish_1layer(NCA):
-	"""
-		Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
-	"""
+	
+		#Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
+	
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
 		super(NCA_swish_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
@@ -350,9 +372,9 @@ class NCA_swish_1layer(NCA):
 		print(self.dense_model.summary())
 
 class NCA_linear_1layer(NCA):
-	"""
-		Sub-class of NCA with no activation functions and 1 hidden layers. Basically just a matrix multiplication
-	"""
+	
+		#Sub-class of NCA with no activation functions and 1 hidden layers. Basically just a matrix multiplication
+	
 
 	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
 		super(NCA_linear_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
@@ -370,7 +392,7 @@ class NCA_linear_1layer(NCA):
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
 		print(self.dense_model.summary())
 
-
+"""
 
 
 
