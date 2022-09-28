@@ -254,6 +254,133 @@ class NCA(tf.keras.Model):
 		
 		self.save("models/"+filename)
 
+
+
+"""===========================================================================================================================
+
+	Below are subclasses of the NCA class with specific activation functions and network architectures
+
+"""
+
+
+class NCA_sigmoid_2layer(NCA):
+	"""
+		Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
+	"""
+
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+
+		#--- Set up dense nn for perception vector
+		self.dense_model = tf.keras.Sequential([
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+								   activation=tf.nn.sigmoid,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
+								   activation=tf.nn.sigmoid,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+
+			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+
+		self.N_layers = 2
+		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+
+
+class NCA_sigmoid_1layer(NCA):
+	"""
+		Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
+	"""
+
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+
+		#--- Set up dense nn for perception vector
+		self.dense_model = tf.keras.Sequential([
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+								   activation=tf.nn.sigmoid,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+
+			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+
+		self.N_layers = 1
+		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+
+
+class NCA_swish_2layer(NCA):
+	"""
+		Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
+	"""
+
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+
+		#--- Set up dense nn for perception vector
+		self.dense_model = tf.keras.Sequential([
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+								   activation=tf.nn.swish,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
+								   activation=tf.nn.swish,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+
+			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+
+		self.N_layers = 2
+		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+
+
+class NCA_swish_1layer(NCA):
+	"""
+		Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
+	"""
+
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+
+		#--- Set up dense nn for perception vector
+		self.dense_model = tf.keras.Sequential([
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+								   activation=tf.nn.swish,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+
+			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+
+		self.N_layers = 1
+		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+
+
+class NCA_linear_1layer(NCA):
+	"""
+		Sub-class of NCA with no activation functions and 1 hidden layers. Basically just a matrix multiplication
+	"""
+
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
+		super(NCA_sigmoid,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
+
+		#--- Set up dense nn for perception vector
+		self.dense_model = tf.keras.Sequential([
+			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
+								   activation=None,
+								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
+								   use_bias=False),
+
+			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+
+		self.N_layers = 1
+		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+
+
+
+
+
+
+
 def load_wrapper(filename):
 	"""
 		Loads the trainable part of the model - the dense nn trained on the perception field

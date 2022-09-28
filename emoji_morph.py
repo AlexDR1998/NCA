@@ -13,7 +13,7 @@ index=int(sys.argv[1])
 
 def train_emoji_sequence(filename_sequence,model_filename,downsample=2):
 	data = load_emoji_sequence(filename_sequence,downsample)
-	ca = NCA(N_CHANNELS)
+	ca = NCA_sigmoid_2layer(N_CHANNELS)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
 	trainer.train_sequence(8000,60)
 
@@ -23,19 +23,19 @@ def main():
 		train_emoji_sequence(["mushroom_1f344.png",
 							  "lizard_1f98e.png",
 							  "rooster_1f413.png"],
-							  "emoji_sequence_2layer_isotropic_nobias_mushroom_lizard_rooster_eddie")
+							  "emoji_sequence_sigmoid_2layer_isotropic_mushroom_lizard_rooster_eddie")
 	
 	if index==2:
 		train_emoji_sequence(["crab.png",
 							  "alien_monster.png",
 							  "butterfly.png"],
-							  "emoji_sequence_2layer_isotropic_nobias_crab_alien_butterfly_eddie")
+							  "emoji_sequence_sigmoid_2layer_isotropic_crab_alien_butterfly_eddie")
 	
 	if index==3:
 		train_emoji_sequence(["butterfly.png",
 							  "microbe.png",
 							  "eye.png"],
-							  "emoji_sequence_2layer_isotropic_nobias_butterfly_microbe_eye_eddie")
+							  "emoji_sequence_sigmoid_2layer_isotropic_butterfly_microbe_eye_eddie")
 
 	#make_video_file("emoji_sequence_1layer_skull_rainbow_skull_eddie")
 	#visualise_distance_to_target("emoji_sequence_mushroom_lizard_rooster_eddie")
