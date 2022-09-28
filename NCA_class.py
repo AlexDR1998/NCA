@@ -10,6 +10,8 @@ class NCA(tf.keras.Model):
 		so that model loading and saving are inherited. 
 		Heavily inspired by work at https://distill.pub/2020/growing-ca/ 
 		modified and extended for purpose of modelling stem cell differentiation experiments
+
+		Don't use this directly, instead use one of the subclasses with specified neural net architecture
 	
 	"""
 
@@ -45,7 +47,8 @@ class NCA(tf.keras.Model):
 			ones = tf.ones(4)
 
 		
-		#--- Set up dense nn for perception vector
+		#--- Set up dense nn for perception vector - removed and added to subclasses
+		"""
 		self.dense_model = tf.keras.Sequential([
 			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
 								   activation=tf.nn.swish,
@@ -59,7 +62,7 @@ class NCA(tf.keras.Model):
 			#tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,activation=None,kernel_regularizer=tf.keras.regularizers.L1(0.001)),
 
 			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-
+		"""
 		self.N_layers = 2
 		#--- Set up convolution kernels
 		_i = np.array([0,1,0],dtype=np.float32)
@@ -75,16 +78,6 @@ class NCA(tf.keras.Model):
 		#kernel = tf.stack([I,av],-1)[:,:,None,:]
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
 
-
-
-
-		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-
-
-
-
-		
-		print(self.dense_model.summary())
 	
 	
 	def __str__(self):
@@ -286,6 +279,7 @@ class NCA_sigmoid_2layer(NCA):
 
 		self.N_layers = 2
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+		print(self.dense_model.summary())
 
 
 class NCA_sigmoid_1layer(NCA):
@@ -307,7 +301,7 @@ class NCA_sigmoid_1layer(NCA):
 
 		self.N_layers = 1
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-
+		print(self.dense_model.summary())
 
 class NCA_swish_2layer(NCA):
 	"""
@@ -332,7 +326,7 @@ class NCA_swish_2layer(NCA):
 
 		self.N_layers = 2
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-
+		print(self.dense_model.summary())
 
 class NCA_swish_1layer(NCA):
 	"""
@@ -353,7 +347,7 @@ class NCA_swish_1layer(NCA):
 
 		self.N_layers = 1
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-
+		print(self.dense_model.summary())
 
 class NCA_linear_1layer(NCA):
 	"""
@@ -374,7 +368,7 @@ class NCA_linear_1layer(NCA):
 
 		self.N_layers = 1
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-
+		print(self.dense_model.summary())
 
 
 
