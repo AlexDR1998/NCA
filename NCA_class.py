@@ -16,7 +16,7 @@ class NCA(tf.keras.Model):
 	"""
 
 
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="swish",LAYERS=2):
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="swish",LAYERS=2,REGULARIZER=0.01):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -30,6 +30,8 @@ class NCA(tf.keras.Model):
 				A binary mask indicating the presence of the adesive micropattern surface
 			ACTIVATION : string optional
 				String corresponding to tensorflow activation functions
+			REGULARIZER : float optional
+				Regularizer coefficient for layer weights
 		"""
 
 
@@ -169,6 +171,63 @@ class NCA(tf.keras.Model):
 		x_new = x + dx*tf.cast(update_mask,tf.float32)
 		return x_new
 
+
+	def run_init(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
+		"""
+			Helper function that initialises some stuff needed for running NCA trajectories.
+			
+			Parameters
+			----------
+			x0 : float32 array [batches,size,size,channels]
+				Initial condition for NCA simulation
+			T : int 
+				number of timesteps to run for		
+			N_BATCHES : int=1
+				number of batches of simulations to run in parallel
+			
+			Returns	
+			-------
+			trajectory : float32 array [T,batches,size,size,channels]
+				array of zeros where trajectory will be written to
+			_mask : float32 tensor [batvhes,size,size,channels]
+				mask to indicate which channel contains information about adhesive surfaces or other environmental constants
+		"""
+		_mask = None
+		#--- Initialise stuff
+		TARGET_SIZE = x0.shape[1]
+		x0 = x0[0:N_BATCHES] # If initial condition is too wide in batches dimension, reduce it
+		trajectory = np.zeros((T,N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS),dtype="float32")
+	
+		#--- Setup initial conditions
+		if x0.shape[-1]<self.N_CHANNELS: # If x0 has less channels than the NCA, pad zeros to x0
+			z0 = tf.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
+			x0 = tf.concat((x0,z0),axis=-1)
+		assert trajectory[0].shape == x0.shape
+		
+		
+
+		#--- Setup the adhesion and decay mask, if provided
+		if ADHESION_MASK is not None:	
+			self.ADHESION_MASK=np.repeat(ADHESION_MASK[...,np.newaxis],self.N_CHANNELS,axis=-1)
+			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
+				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
+			#ones = np.ones(5)
+			
+		if self.ADHESION_MASK is not None:
+			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
+				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
+			_mask = tf.zeros((x0.shape),dtype="float32")
+			_mask[...,4]=1
+			x0 = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*x0
+			#ones = np.ones(5)
+			self.ADHESION_MASK = tf.convert_to_tensor(self.ADHESION_MASK)
+		#if self.ADHESION_MASK is None:
+			#ones = np.ones(4)
+			
+		trajectory[0] = x0
+		return trajectory,_mask
+
+
 	def run(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
 		"""
 			Iterates self.call several times to perform a NCA simulation.
@@ -188,51 +247,41 @@ class NCA(tf.keras.Model):
 				time series resulting from running NCA for T steps starting at x0
 		"""
 
-		#--- Initialise stuff
-		TARGET_SIZE = x0.shape[1]
-		x0 = x0[0:N_BATCHES] # If initial condition is too wide in batches dimension, reduce it
-		trajectory = np.zeros((T,N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS),dtype="float32")
-	
-		#--- Setup initial conditions
-		if x0.shape[-1]<self.N_CHANNELS: # If x0 has less channels than the NCA, pad zeros to x0
-			z0 = np.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
-			x0 = np.concatenate((x0,z0),axis=-1)
-		assert trajectory[0].shape == x0.shape
-		
-		
-
-		#--- Setup the adhesion and decay mask, if provided
-		if ADHESION_MASK is not None:	
-			self.ADHESION_MASK=np.repeat(ADHESION_MASK[...,np.newaxis],self.N_CHANNELS,axis=-1)
-			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
-				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
-			ones = np.ones(5)
-			
-		if self.ADHESION_MASK is not None:
-			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
-				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
-			_mask = np.zeros((x0.shape),dtype="float32")
-			_mask[...,4]=1
-			x0 = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*x0
-			ones = np.ones(5)
-			
-		if self.ADHESION_MASK is None:
-			ones = np.ones(4)
-			
-		trajectory[0] = x0
-		
-
+		#--- Set up variables
+		trajectory,_mask=self.run_init(x0,T,N_BATCHES=N_BATCHES,ADHESION_MASK=ADHESION_MASK)
 		
 		#--- Run T iterations of NCA
 		for t in range(1,T):
 			trajectory[t] = self.call(trajectory[t-1])
 			if self.ADHESION_MASK is not None:
 				trajectory[t] = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*trajectory[t]
-		
+		trajectory = tf.convert_to_tensor(trajectory, dtype=tf.float32)
+
 		return trajectory
 
 
-	
+	def run_detailed(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
+		"""
+			Iterates self.call several times to perform a NCA simulation.
+			Also tracks and returns trajectories of increments for each kernel
+			
+			Parameters
+			----------
+			x0 : float32 array [batches,size,size,channels]
+				Initial condition for NCA simulation
+			T : int 
+				number of timesteps to run for		
+			N_BATCHES : int=1
+				number of batches of simulations to run in parallel
+			
+			Returns	
+			-------
+			trajectory : float32 array [T,batches,size,size,channels]
+				time series resulting from running NCA for T steps starting at x0
+			k_trajectory : float32 array [T,batches,kernels,size,size,channels]
+				time series of increments
+		"""
+
 	def get_config(self):
 		return {"N_CHANNELS":self.N_CHANNELS,
 				"FIRE_RATE": self.FIRE_RATE}

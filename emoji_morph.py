@@ -13,7 +13,7 @@ index=int(sys.argv[1])
 
 def train_emoji_sequence(filename_sequence,model_filename,downsample=2):
 	data = load_emoji_sequence(filename_sequence,downsample)
-	ca = NCA(N_CHANNELS,ACTIVATION="sigmoid")
+	ca = NCA(N_CHANNELS,ACTIVATION="sigmoid",REGULARIZER=0.0001)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
 	trainer.train_sequence(8000,60)
 
