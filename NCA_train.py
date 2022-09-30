@@ -368,7 +368,43 @@ class NCA_Trainer(object):
 		#if model_filename is not None:
 		#	ca.save_wrapper(model_filename)
 
+	def data_pad_augment(self,AUGMENTATION,WIDTH):
+		"""
+			Augments training data by padding with extra zeros and randomly translating I.C - target pairs
+			Should result in NCA that ignores simulation boundary
 
+			Parameters
+			----------
+			AUGMENTATION : int
+				Number of copies of data to augment - multiplies number of batches
+			WIDTH : int
+				How wide to pad data with zeros
+
+		"""
+		
+		#--- Reshape x0 and target to be [T-1,batch,size,size,channels]
+		x0 = self.x0.reshape((self.T-1,self.N_BATCHES,self.x0.shape[1],self.x0.shape[2],-1))
+		target = self.target.reshape((self.T-1,self.N_BATCHES,self.target.shape[1],self.target.shape[2],-1))
+		
+		#--- Pad along [:,:,size,size,:] dimensions
+		padwidth = ((0,0),(0,0),(WIDTH,WIDTH),(WIDTH,WIDTH),(0,0))
+		x0 = np.pad(x0,padwidth)
+		target = np.pad(target,padwidth)
+
+		#--- Duplicate by AUGMENTATION along batches axis
+		x0 = np.repeat(x0,AUGMENTATION,axis=1)
+		target = np.repeat(target,AUGMENTATION,axis=1)
+
+		#--- Randomly offset each image
+		shifts = np.random.randint(low=-WIDTH,high=WIDTH,size=(x0.shape[1],2))
+		for t in range(x0.shape[0]):
+			for b in range(x0.shape[1]):
+				x0[t,b] = np.roll(x0[t,b],shift=shifts[b],axis=(0,1))
+				target[t,b] = np.roll(target[t,b],shift=shifts[b],axis=(0,1))
+
+		#--- Reshape back to [(T-1)*batch,size,size,channels]
+		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
 
 
 class NCA_Trainer_stem_cells(NCA_Trainer):
