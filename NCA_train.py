@@ -407,6 +407,20 @@ class NCA_Trainer(object):
 		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
 
 
+	def data_noise_augment(self,AMOUNT=0.001):
+		"""
+			Augments training data by adding noise to the I.C. scaled by AMOUNT
+
+			Parameters
+			----------
+			AMOUNT : float [0,1]
+				Interpolates between initial data at 0 and pure noise at 1
+
+
+		"""
+		noise = np.random.uniform(size=self.x0.shape)
+		x0_noisy = AMOUNT*noise + (1-AMOUNT)*self.x0
+		self.x0 = x0_noisy
 class NCA_Trainer_stem_cells(NCA_Trainer):
 	"""
 		Subclass of NCA_Trainer that specifically handles quirks of stem cell data.

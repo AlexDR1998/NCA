@@ -282,6 +282,70 @@ class NCA(tf.keras.Model):
 				time series of increments
 		"""
 
+		#--- Initialise trajectory variables
+		K = self.KERNEL.shape[3]
+		trajectory,_mask=self.run_init(x0,T,N_BATCHES=N_BATCHES,ADHESION_MASK=ADHESION_MASK)
+		TARGET_SIZE = x0.shape[1]
+		k_trajectory = np.zeros((T,N_BATCHES,K,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS))
+		k_trajectory_dx = np.zeros((T,N_BATCHES,K,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS))
+		SUBKERNELS = tf.repeat(self.KERNEL[...,None],K,-1).numpy()
+		print(SUBKERNELS.shape)
+		for i in range(K):
+			mask = np.zeros(self.KERNEL.shape).astype(int)
+			mask[:,:,:,i]=1
+			SUBKERNELS[...,i]*=mask
+		SUBKERNELS = tf.convert_to_tensor(SUBKERNELS)
+
+		@tf.function
+		def partial_perception(x,i):
+			y = tf.nn.depthwise_conv2d(x,SUBKERNELS[...,i],[1,1,1,1],"SAME")
+			return y
+
+
+		@tf.function
+		def partial_call(x,i,step_size=1.0,fire_rate=None):
+			"""
+				Applies a neural network (the trainable part of the model) to the partial perception field.
+				
+				Parameters
+				----------
+				x : float32 tensor [batches,size,size,N_CHANNELS]
+					state space of NCA, first 4 channels are typically visualised as RGBA,
+					rest are hidden channels
+				step_size : float=1.0
+					scale size of updates
+				fire_rate : float=None
+					controls probability of each pixel updating
+				i : int
+					Which kernel to select
+
+				Returns
+				-------
+				x_new : float32 tensor
+					new state space of NCA, with (stochastically masked) update applied across all channels and batches
+			"""
+			#print(x.shape)
+			y = partial_perception(x,i)
+			#print(y.shape)
+			dx = self.dense_model(y)*step_size
+			if fire_rate is None:
+				fire_rate = self.FIRE_RATE
+			update_mask = tf.random.normal(tf.shape(x[:,:,:,:1])) <= fire_rate
+
+			x_new = x + dx*tf.cast(update_mask,tf.float32)
+			return x_new,dx
+
+		
+		#--- Run T iterations of NCA
+		for t in range(1,T):
+			trajectory[t] = self.call(trajectory[t-1])
+			for k in range(K):
+				k_trajectory[t,:,k],k_trajectory_dx[t,:,k] = partial_call(trajectory[t-1],k)
+			if self.ADHESION_MASK is not None:
+				trajectory[t] = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*trajectory[t]
+		trajectory = tf.convert_to_tensor(trajectory, dtype=tf.float32)
+		return trajectory,k_trajectory,k_trajectory_dx
+
 	def get_config(self):
 		return {"N_CHANNELS":self.N_CHANNELS,
 				"FIRE_RATE": self.FIRE_RATE}
