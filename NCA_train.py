@@ -405,7 +405,8 @@ class NCA_Trainer(object):
 		#--- Reshape back to [(T-1)*batch,size,size,channels]
 		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
 		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
-
+		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		
 
 	def data_noise_augment(self,AMOUNT=0.001):
 		"""
