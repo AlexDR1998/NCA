@@ -207,7 +207,7 @@ class NCA_Trainer(object):
 		"""
 
 		with self.train_summary_writer.as_default():
-			grids = self.NCA_model.run(self.x0,iter_n*self.T*2,1)
+			grids = self.NCA_model.run(self.x0,iter_n*self.T*2,1).numpy()
 			grids[...,4:] = (1+np.tanh(grids[...,4:]))/2.0
 			for i in range(iter_n*self.T*2):
 				if self.RGB_mode=="RGB":
@@ -408,7 +408,7 @@ class NCA_Trainer(object):
 		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
 		
 
-	def data_noise_augment(self,AMOUNT=0.001):
+	def data_noise_augment(self,AMOUNT=0.01):
 		"""
 			Augments training data by adding noise to the I.C. scaled by AMOUNT
 
