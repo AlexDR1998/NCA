@@ -85,9 +85,9 @@ def main():
 						  "emoji_pairs_swish")
 	
 	if index==5:
-		train_denoise(["butterfly.png","rooster_1f413.png","lizard_1f98e.png"],
-						0.1,
-						"emoji_denoise_swish")
+		train_denoise(["butterfly.png"],
+						0.05,
+						"emoji_denoise_butterfly_swish")
 
 	if index==6:
 		train_emoji_sequence(["crab.png",
