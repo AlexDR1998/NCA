@@ -31,8 +31,8 @@ def train_emoji_pairs(initial_filenames,target_filenames,model_filename,downsamp
 
 	ca = NCA(N_CHANNELS,ACTIVATION="swish",REGULARIZER=0.1)
 	trainer = NCA_Trainer(ca,data,N_BATCHES=data.shape[1],model_filename=model_filename)
-	trainer.data_pad_augment(2,15)
-	trainer.data_noise_augment()
+	trainer.data_pad_augment(4,15)
+	#trainer.data_noise_augment()
 	trainer.train_sequence(8000,60)	
 
 def train_denoise(filenames,AMOUNT,model_filename,downsample=2):
@@ -80,21 +80,29 @@ def main():
 							  "eye.png"],
 							  "emoji_sequence_swish_noise_pad_augment_butterfly_microbe_eye_eddie")
 	if index==4:
-		train_emoji_pairs(["butterfly.png","microbe.png","rooster_1f413.png"],
-						  ["lizard_1f98e.png","alien_monster.png","mushroom_1f344.png"],
-						  "emoji_pairs_swish")
+		train_emoji_pairs(["butterfly.png","microbe.png"],
+						  ["lizard_1f98e.png","alien_monster.png"],
+						  "emoji_pairs_swish_butterfly_microbe")
 	
 	if index==5:
-		train_denoise(["butterfly.png"],
-						0.05,
-						"emoji_denoise_butterfly_swish")
+		train_emoji_pairs(["butterfly.png","rooster_1f413.png"],
+						  ["lizard_1f98e.png","mushroom_1f344.png"],
+						  "emoji_pairs_swish_butterfly_rooster")
 
+	
+	if index==6:
+		train_emoji_pairs(["microbe.png","rooster_1f413.png"],
+						  ["alien_monster.png","mushroom_1f344.png"],
+						  "emoji_pairs_swish_microbe_rooster")
+
+	"""
 	if index==6:
 		train_emoji_sequence(["crab.png",
 							  "alien_monster.png",
 							  "butterfly.png",
 							  "butterfly.png"],
 							  "emoji_sequence_swish_noise_pad_augment_crab_alien_butterfly_stable_eddie")
+	"""
 	#make_video_file("emoji_sequence_1layer_skull_rainbow_skull_eddie")
 	#visualise_distance_to_target("emoji_sequence_mushroom_lizard_rooster_eddie")
 
