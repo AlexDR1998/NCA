@@ -15,9 +15,9 @@ def train_emoji_sequence(filename_sequence,model_filename,downsample=2):
 	data = load_emoji_sequence(filename_sequence,downsample)
 	ca = NCA(N_CHANNELS,ACTIVATION="swish",REGULARIZER=0.1)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
-	trainer.data_pad_augment(1,15)
+	trainer.data_pad_augment(2,15)
 	trainer.data_noise_augment()
-	trainer.train_sequence(8000,60)
+	trainer.train_sequence(16000,60)
 
 def train_emoji_pairs(initial_filenames,target_filenames,model_filename,downsample=2):
 	"""
@@ -32,7 +32,7 @@ def train_emoji_pairs(initial_filenames,target_filenames,model_filename,downsamp
 	ca = NCA(N_CHANNELS,ACTIVATION="swish",REGULARIZER=0.1)
 	trainer = NCA_Trainer(ca,data,N_BATCHES=data.shape[1],model_filename=model_filename)
 	trainer.data_pad_augment(4,15)
-	#trainer.data_noise_augment()
+	trainer.data_noise_augment()
 	trainer.train_sequence(8000,60)	
 
 def train_denoise(filenames,AMOUNT,model_filename,downsample=2):
@@ -94,7 +94,9 @@ def main():
 		train_emoji_pairs(["microbe.png","rooster_1f413.png"],
 						  ["alien_monster.png","mushroom_1f344.png"],
 						  "emoji_pairs_swish_microbe_rooster")
-
+	if index==7:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 ["emoji_alien_monster_rooster_stable_high_quality"])
 	"""
 	if index==6:
 		train_emoji_sequence(["crab.png",
