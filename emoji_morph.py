@@ -96,7 +96,7 @@ def main():
 						  "emoji_pairs_swish_microbe_rooster")
 	if index==7:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
-							 ["emoji_alien_monster_rooster_stable_high_quality"])
+							 "emoji_alien_monster_rooster_stable_high_quality")
 	"""
 	if index==6:
 		train_emoji_sequence(["crab.png",
