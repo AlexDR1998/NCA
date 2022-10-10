@@ -1,7 +1,6 @@
 import numpy as np
 import scipy as sp
 import tensorflow as tf
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 """
 A class for the simulation of arbitrary systems of time dependent PDEs with 2 spatial dimensions
