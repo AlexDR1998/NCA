@@ -5,7 +5,7 @@ import tensorflow as tf
 from tqdm import tqdm
 import datetime
 from PDE_solver import PDE_solver
-
+from NCA_train_utils import *
 
 
 
@@ -45,11 +45,17 @@ class NCA_Trainer(object):
 
 
 		data = data.astype("float32") # Cast data to float32 for tensorflow
-		self.RGB_mode = RGB_mode
 		self.NCA_model = NCA_model
 		self.N_BATCHES = N_BATCHES
-		self.N_CHANNELS = self.NCA_model.N_CHANNELS
 		
+		self.N_CHANNELS = self.NCA_model.N_CHANNELS
+		self.OBS_CHANNELS=self.NCA_model.OBS_CHANNELS
+		if self.OBS_CHANNELS==3:
+			RGB_mode = "RGB"
+
+		self.RGB_mode = RGB_mode
+		
+
 		if model_filename is None:
 			self.model_filename = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		else:
@@ -91,9 +97,10 @@ class NCA_Trainer(object):
 				Array of errors at each timestep
 		"""
 
-		eu = tf.math.reduce_euclidean_norm((x[...,:4]-self.target),[-2,-3,-1])
+		eu = tf.math.reduce_euclidean_norm((x[...,:self.OBS_CHANNELS]-self.target),[-2,-3,-1])
 		# self.N_BATCHES: removes the 'hidden' 12h state
 		return tf.reduce_mean(tf.reshape(eu,(-1,self.N_BATCHES)),-1)
+
 
 	def setup_tb_log_sequence(self):
 		"""
@@ -202,7 +209,7 @@ class NCA_Trainer(object):
 	
 	def tb_write_result(self,iter_n):
 		"""
-			Log final trained behaviour of NCA model to tensorboard
+			Log trained behaviour of NCA model to tensorboard
 
 			Parameters
 			----------
@@ -212,23 +219,23 @@ class NCA_Trainer(object):
 
 		with self.train_summary_writer.as_default():
 			grids = self.NCA_model.run(self.x0,iter_n*self.T*2,1).numpy()
-			grids[...,4:] = (1+np.tanh(grids[...,4:]))/2.0
+			grids[...,self.OBS_CHANNELS:] = (1+np.tanh(grids[...,self.OBS_CHANNELS:]))/2.0
 			for i in range(iter_n*self.T*2):
 				if self.RGB_mode=="RGB":
 					tf.summary.image('Trained NCA dynamics RGB',
-									 grids[i,:1,...,:3],
+									 grids[i,:1,...,:self.OBS_CHANNELS],
 									 step=i)
 				elif self.RGB_mode=="RGBA":
 					tf.summary.image('Trained NCA dynamics RGBA',
-									 grids[i,:1,...,:4],
+									 grids[i,:1,...,:self.OBS_CHANNELS],
 									 step=i)
 				elif self.RGB_mode=="RGB-A":
 					tf.summary.image('Trained NCA dynamics RGB --- Alpha',
-									 np.concatenate((grids[i,:1,...,:3],
-									 				 np.repeat(grids[i,:1,...,3:4],3,axis=-1)),
+									 np.concatenate((grids[i,:1,...,:self.OBS_CHANNELS-1],
+									 				 np.repeat(grids[i,:1,...,self.OBS_CHANNELS-1:self.OBS_CHANNELS],3,axis=-1)),
 									 				axis=1),
 									 step=i)
-				if self.N_CHANNELS>=7:	
+				if self.N_CHANNELS>=self.OBS_CHANNELS+3:	
 					for j in range((self.N_CHANNELS-1)//3-1):
 						if j==0:
 							hidden_channels = grids[i,:1,...,4:7]
@@ -238,12 +245,37 @@ class NCA_Trainer(object):
 					tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
 									 hidden_channels,step=i,max_outputs=(self.N_CHANNELS-1)//3-1)
 
-	def train_step(self,x,iter_n,REG_COEFF,update_gradients=True):
+	def train_step(self,x,iter_n,REG_COEFF,update_gradients=True,LOSS_FUNC=None):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks model
-		"""
+			
+			Parameters
+			----------
 
+			iter_n : int
+				number of NCA update steps to run ca
+
+			REG_COEFF : float32 optional
+				Strength of intermediate state regulariser - penalises any pixels outwith [0,1]
+			
+			update_gradients : bool optional
+				Controls whether model weights are updated at this step
+
+			LOSS_FUNC : (float32 tensor [N_BATCHES,X,Y,N_CHANNELS])**2 -> float32 tensor [N_BATCHES] optional
+				Alternative loss function
+
+
+
+		"""
 		
+		#--- If alternative loss function is provided, use that, otherwise use default
+		if LOSS_FUNC is None:
+			loss_func =  self.loss_func
+		else:
+			loss_func = lambda x: LOSS_FUNC(x[...,:self.OBS_CHANNELS],self.target)
+		
+		
+
 		with tf.GradientTape() as g:
 			reg_log = []
 			for i in range(iter_n):
@@ -257,17 +289,17 @@ class NCA_Trainer(object):
 				reg_log.append(tf.math.maximum(above_1,below_0))
 				
 			#print(x.shape)
-			losses = self.loss_func(x) 
+			losses = loss_func(x) 
 			reg_loss = tf.cast(tf.reduce_mean(reg_log),tf.float32)
 			mean_loss = tf.reduce_mean(losses) + REG_COEFF*reg_loss
 					
 		if update_gradients:
 			grads = g.gradient(mean_loss,self.NCA_model.weights)
-			#grads = [g/(tf.norm(g)+1e-8) for g in grads]
+			grads = [g/(tf.norm(g)+1e-8) for g in grads]
 			self.trainer.apply_gradients(zip(grads, self.NCA_model.weights))
 		return x, mean_loss,losses
 
-	def train_sequence(self,TRAIN_ITERS,iter_n,REG_COEFF=0):
+	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None):
 		"""
 			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 			
@@ -278,9 +310,16 @@ class NCA_Trainer(object):
 				how many iterations of training
 			iter_n : int
 				number of NCA update steps to run ca
-			REG_COEFF : float32
+
+			UPDATE_RATE: float32 optional
+				Controls stochasticity of applying gradient updates, potentially useful for breaking dominance of short time effects
+
+			REG_COEFF : float32 optional
 				Strength of intermediate state regulariser - penalises any pixels outwith [0,1]
 			
+			LOSS_FUNC : (float32 tensor [N_BATCHES,X,Y,N_CHANNELS])**2 -> float32 tensor [N_BATCHES] optional
+				Alternative loss function
+
 			Returns
 			-------
 			None
@@ -299,7 +338,7 @@ class NCA_Trainer(object):
 
 		if self.NCA_model.ADHESION_MASK is not None:
 			_mask = np.zeros((self.x0.shape),dtype="float32")
-			_mask[...,4]=1
+			_mask[...,self.OBS_CHANNELS]=1
 			print(_mask.shape)
 			print(self.NCA_model.ADHESION_MASK.shape)
 
@@ -316,8 +355,8 @@ class NCA_Trainer(object):
 		print(self.x0.shape)
 		print(self.x0_true.shape)
 		for i in tqdm(range(TRAIN_ITERS)):
-			
-			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF)#,i%4==0)
+			R = np.random.uniform()<UPDATE_RATE
+			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R)#,i%4==0)
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
 			if N_BATCHES>1:
 				self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
@@ -327,6 +366,7 @@ class NCA_Trainer(object):
 				if self.model_filename is not None:
 					self.NCA_model.save_wrapper(self.model_filename)
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
+					self.tb_write_result(iter_n)
 				best_mean_loss = mean_loss
 
 			loss = np.hstack((mean_loss,losses))
@@ -336,7 +376,7 @@ class NCA_Trainer(object):
 			self.tb_training_loop_log_sequence(loss,x,i)
 		print("-------- Training complete ---------")
 		#--- Write resulting animation to tensorboard			
-		self.tb_write_result(iter_n)
+		
 
 		#--- If a filename is provided, save the trained NCA model.
 		#if model_filename is not None:
@@ -684,7 +724,7 @@ class NCA_IC_Trainer(NCA_Trainer):
 		some function of trajectory
 	"""
 
-	def __init__(self,NCA_model,data,N_BATCHES,log_filename):
+	def __init__(self,NCA_model,data,N_BATCHES,log_filename,mode="max"):
 		super().__init__(NCA_model,data,N_BATCHES,log_filename)
 
 		#--- Add a tiny bit of noise to x0
@@ -699,6 +739,8 @@ class NCA_IC_Trainer(NCA_Trainer):
 		#--- Append this to targets and x0 after each tweak of x0
 		self.z0 = tf.zeros((self.x0.shape[0],self.x0.shape[1],self.x0.shape[2],self.N_CHANNELS-4))
 
+
+		self.mode = mode
 	def tb_training_loop_log_sequence(self,loss,x0,x,i):
 		"""
 			Helper function to format some data logging during the training loop
@@ -808,8 +850,10 @@ class NCA_IC_Trainer(NCA_Trainer):
 				
 				
 			#print(x.shape)
-			losses = self.loss_func_max(x,x0) 
-			
+			if self.mode=="max":
+				losses = self.loss_func_max(x,x0) 
+			else:
+				losses = self.loss_func_min(x,x0)
 			mean_loss = tf.reduce_mean(losses)
 					
 		
@@ -912,9 +956,282 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		"""
 
 
-		self.N_CHANNELS = NCA_model.N_CHANNELS
+		#self.N_CHANNELS = NCA_model.N_CHANNELS
+	
+		self.T_steps = T
+
+		PDE_model = PDE_solver(F,NCA_model.OBS_CHANNELS,N_BATCHES,size=[x0.shape[1],x0.shape[2]])
+		data = PDE_model.run(iterations=T,step_size=0.1,initial_condition=x0)
+		super().__init__(NCA_model,data,N_BATCHES,model_filename)
+		
+		assert x0.shape[-1]==self.OBS_CHANNELS, "Observable channels of NCA does not match data dimensions"
+
+		"""
+		self.x0 = tf.convert_to_tensor(self.data[0])
+		self.x0_true = tf.convert_to_tensor(self.data[0])
+		self.data = tf.convert_to_tensor(self.data)
+		self.T = 1
+		"""
+		print("Data shape: "+str(self.data.shape))
+		print("X0 shape: "+str(self.x0.shape))
+		print("Target shape: "+str(self.target.shape))
+		
+		#self.data = self.data.reshape((-1,N_BATCHES,self.data.shape[2],self.data.shape[3],self.data.shape[4]))
+		
+		#print(self.data.shape)
+		
+		self.setup_tb_log_sequence()
+
+
+
+	def setup_tb_log_sequence(self):
+		"""
+			Initialises the tensorboard logging of training.
+			Writes some initial information. Very similar to setup_tb_log_single, but designed for sequence modelling
+
+		"""
+
+
+		#if model_filename is None:
+		#	current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+		#	train_log_dir = "logs/gradient_tape/"+current_time+"/train"
+		#else:
+		train_log_dir = "logs/gradient_tape/"+self.model_filename+"/train"
+		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+		
+		#--- Log the graph structure of the NCA
+		tf.summary.trace_on(graph=True,profiler=True)
+		y = self.NCA_model.perceive(self.x0)
+		with train_summary_writer.as_default():
+			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
+		
+		tf.summary.trace_on(graph=True,profiler=True)
+		x = self.NCA_model(self.x0)
+		with train_summary_writer.as_default():
+			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
+		
+		#--- Log the target image and initial condtions
+		
+
+		with train_summary_writer.as_default():
+			grids = self.data
+			#for b in range(self.N_BATCHES):
+			for i in range(self.T_steps):
+				if self.RGB_mode=="RGB":
+					tf.summary.image('PDE dynamics RGB',
+									 grids[i,...,:self.OBS_CHANNELS],
+									 step=i)
+				elif self.RGB_mode=="RGBA":
+					tf.summary.image('PDE dynamics RGBA',
+									 grids[i,...,:self.OBS_CHANNELS],
+									 step=i)
+				elif self.RGB_mode=="RGB-A":
+					tf.summary.image('PDE dynamics RGB --- Alpha',
+									 np.concatenate((grids[i,...,:self.OBS_CHANNELS-1],
+									 				 np.repeat(grids[i,...,self.OBS_CHANNELS-1:self.OBS_CHANNELS],3,axis=-1)),
+									 				axis=1),
+									 step=i)
+				
+				#No hidden dynamics of PDE
+				"""
+				b=0
+				if self.N_CHANNELS>=self.OBS_CHANNELS+3:
+					grids_hidden = grids[...,self.OBS_CHANNELS:]
+					hidden_channels = grids_hidden[i,b:(b+1),...,:3]
+					for j in range((self.N_CHANNELS-self.OBS_CHANNELS)//3-1):
+						
+						hidden_channels = np.concatenate((hidden_channels,
+														  grids_hidden[i,b:(b+1),...,((j+1)*3):((j+2)*3)]))
+					
+					tf.summary.image('PDE hidden dynamics',
+									 hidden_channels,step=i,max_outputs=(self.N_CHANNELS-1)//3-1)
+				"""
+		self.train_summary_writer = train_summary_writer
+
+
+	def tb_training_loop_log_sequence(self,loss,x,i):
+		"""
+			Helper function to format some data logging during the training loop
+
+			Parameters
+			----------
+			
+			loss : float32 tensor [T]
+				Array of errors at each timestep (24h, 36h, 48h)
+
+			x : float32 tensor [N_BATCHES,size,size,N_CHANNELS]
+				final output of NCA
+
+			i : int
+				current step in training loop - useful for logging something every n steps
+
+		"""
+		N_BATCHES = self.N_BATCHES
+		with self.train_summary_writer.as_default():
+			tf.summary.scalar('Mean Loss',loss[0],step=i)
+			tf.summary.histogram('Loss ',loss,step=i)
+			if i%10==0:
+				#print(ca.dense_model.layers[0].get_weights()[0])
+				for n in range(self.NCA_model.N_layers):
+					model_params = self.NCA_model.dense_model.layers[n].get_weights()
+					tf.summary.histogram('Layer '+str(n)+' weights',model_params[0],step=i)
+					try:
+						tf.summary.histogram('Layer '+str(n)+' biases',model_params[1],step=i)
+					except Exception as e:
+						pass
+
 	
 
-		PDE_model = PDE_solver(F,self.N_CHANNELS,N_BATCHES,size=[x0.shape[1],x0.shape[2]])
-		data = PDE_model.run(iterations=T,initial_condition=x0)
-		super.__init__(NCA_model,data,N_BATCHES,model_filename)
+	def tb_write_result(self,iter_n):
+		"""
+			Log trained behaviour of NCA model to tensorboard
+
+			Parameters
+			----------
+			iter_n : int
+				How many steps between each sequence image
+		"""
+
+		with self.train_summary_writer.as_default():
+			#print(self.data.shape)
+			grids = self.NCA_model.run(self.data[0],self.T_steps*iter_n*2,N_BATCHES=self.N_BATCHES).numpy()
+			#print(grids.shape)
+			grids[...,self.OBS_CHANNELS:] = (1+np.tanh(grids[...,self.OBS_CHANNELS:]))/2.0
+			for i in range(self.T_steps*iter_n*2):
+				if self.RGB_mode=="RGB":
+					tf.summary.image('Trained NCA dynamics RGB',
+									 grids[i,...,:self.OBS_CHANNELS],
+									 step=i)
+				elif self.RGB_mode=="RGBA":
+					tf.summary.image('Trained NCA dynamics RGBA',
+									 grids[i,...,:self.OBS_CHANNELS],
+									 step=i)
+				elif self.RGB_mode=="RGB-A":
+					tf.summary.image('Trained NCA dynamics RGB --- Alpha',
+									 np.concatenate((grids[i,...,:self.OBS_CHANNELS-1],
+									 				 np.repeat(grids[i,:1,...,self.OBS_CHANNELS-1:self.OBS_CHANNELS],3,axis=-1)),
+									 				axis=1),
+									 step=i)
+				if self.N_CHANNELS>=self.OBS_CHANNELS+3:	
+					grids_hidden = grids[...,self.OBS_CHANNELS:]
+					hidden_channels = grids_hidden[i,:1,...,:3]
+				
+					#print(hidden_channels.shape)
+					for j in range((self.N_CHANNELS-self.OBS_CHANNELS)//3-1):
+						hidden_channels = np.concatenate((hidden_channels,
+														  grids_hidden[i,:1,...,((j+1)*3):((j+2)*3)]))
+					#print(hidden_channels.shape)
+					tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
+									 hidden_channels,step=i)
+
+
+	'''
+	def loss_func(self,x):
+		"""
+			float32 (N_BATCHES,size,size,N_CHANNELS),float32 (N_BATCHES,size,size,N_CHANNELS) -> float32
+		"""
+		#print("X shape: "+str(x.shape))
+		#print("X true shape: "+str(x_true.shape))
+		eu = tf.math.reduce_euclidean_norm((x-self.target),[-2,-3,-1])
+		# self.N_BATCHES: removes the 'hidden' 12h state
+		return tf.reduce_mean(tf.reshape(eu,(-1,self.N_BATCHES)),-1)
+
+
+
+	
+	
+
+	def train_step(self,x0,iter_n):
+		with tf.GradientTape() as g:
+			loss = tf.Variable([0.0],trainable=True)
+			#g.watch(x0)
+			g.watch(loss)
+			#losses = np.zeros(iter_n)
+			i = np.random.randint(iter_n-1)
+			#print(i)
+			x = self.NCA_model(self.data[i])
+			loss = self.loss_func(x,self.data[i+1])
+			#x = tf.identity(x0)
+
+
+			"""
+			for i in tqdm(range(1,iter_n)):
+				x = self.NCA_model(x)
+				#print(x)
+				#print("X shape: "+str(x.shape))
+				_l = self.loss_func(x,self.data[i])
+				#print(_l)
+				losses[i] = _l
+				loss.assign_add(_l)
+			print(losses)
+			print(loss)
+			"""
+		grads = g.gradient(loss,self.NCA_model.weights)
+		#print(grads)
+		grads = [g/(tf.norm(g)+1e-8) for g in grads]
+		self.trainer.apply_gradients(zip(grads, self.NCA_model.weights))
+		
+		return x, loss
+
+	def train_sequence(self,TRAIN_ITERS):
+		"""
+			Trains the ca to recreate the given PDE trajectory. Error is calculated by comparing NCA and PDE grids at each timestep 
+			
+			Parameters
+			----------
+			
+			TRAIN_ITERS : int
+				how many iterations of training
+			
+			
+			Returns
+			-------
+			None
+		"""
+		
+		#--- Setup training algorithm
+
+		lr = 2e-3
+		#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
+		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
+		self.trainer = tf.keras.optimizers.Adam(lr_sched)
+		#trainer = tf.keras.optimizers.RMSprop(lr_sched)
+
+		#--- Do training loop
+		
+		
+		best_mean_loss = 100000
+		N_BATCHES = self.N_BATCHES
+		print(N_BATCHES)
+		print(self.x0.shape)
+		print(self.x0_true.shape)
+		for i in tqdm(range(TRAIN_ITERS)):
+			
+			x,loss = self.train_step(self.x0,self.T_steps)#,i%4==0)
+			
+			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
+			if (loss<best_mean_loss) and (i>TRAIN_ITERS//10):
+				if self.model_filename is not None:
+					self.NCA_model.save_wrapper(self.model_filename)
+					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
+				best_mean_loss = loss
+
+			#loss = np.hstack((mean_loss,losses))
+			
+			
+			#--- Write to log
+			self.tb_training_loop_log_sequence(loss,x,i)
+		print("-------- Training complete ---------")
+		#--- Write resulting animation to tensorboard
+		#print(self.x0.shape)	
+		#x0_copy = self.x0.numpy()
+		#self.x0 = x0_copy.reshape((-1,x0_copy.shape[2],x0_copy.shape[3],x0_copy.shape[4]))		
+		#self.T = self.T_steps
+		self.tb_write_result(self.T_steps)
+
+
+		#--- If a filename is provided, save the trained NCA model.
+		#if model_filename is not None:
+		#	ca.save_wrapper(model_filename)
+
+	'''

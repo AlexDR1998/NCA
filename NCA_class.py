@@ -16,7 +16,7 @@ class NCA(tf.keras.Model):
 	"""
 
 
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="swish",LAYERS=2,REGULARIZER=0.01):
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="swish",LAYERS=2,OBS_CHANNELS=4,REGULARIZER=0.01):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -30,14 +30,21 @@ class NCA(tf.keras.Model):
 				A binary mask indicating the presence of the adesive micropattern surface
 			ACTIVATION : string optional
 				String corresponding to tensorflow activation functions
+			LAYERS : int optional
+				How many hidden layers in the neural network
+			OBS_CHANNELS : int optional
+				How many of the channels are 'observable', i.e. fitted to target data
 			REGULARIZER : float optional
 				Regularizer coefficient for layer weights
 		"""
 
-
+		if OBS_CHANNELS>N_CHANNELS:
+			print("Too many observable channels, setting OBS_CHANNELS = "+str(N_CHANNELS))
+			OBS_CHANNELS = N_CHANNELS
 
 		super(NCA,self).__init__()
 		self.N_CHANNELS=N_CHANNELS # RGBA +hidden layers
+		self.OBS_CHANNELS=OBS_CHANNELS
 		self.FIRE_RATE=FIRE_RATE # controls stochastic updates - i.e. grid isn't globaly synchronised
 		self.N_layers = LAYERS
 		self.ACTIVATION = ACTIVATION
@@ -49,7 +56,7 @@ class NCA(tf.keras.Model):
 			
 		else:
 			self.ADHESION_MASK=None
-			ones = tf.ones(4)
+			ones = tf.ones(self.OBS_CHANNELS)
 
 		
 		#--- Set up dense nn for perception vector - removed and added to subclasses
@@ -92,7 +99,35 @@ class NCA(tf.keras.Model):
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
 		print(self.dense_model.summary())
-	
+		
+	def upscale_kernel(self):
+		"""
+			Replaces kernels with higher resolution versions
+		"""
+		#_i = np.array([0,0,1,0,0],dtype=np.float32)
+		#I  = np.outer(_i,_i)
+		I = np.array([[0,0,0,0,0],
+					  [0,0,1,0,0],
+					  [0,1,1,1,0],
+					  [0,0,1,0,0],
+					  [0,0,0,0,0]]).astype(np.float32)/5.0
+		#dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
+		#dy = dx.T
+		lap = np.array([[0,0,1,0,0],
+						[0,1,2,1,0],
+						[1,2,-16,2,1],
+						[0,1,2,1,0],
+						[0,0,1,0,0]]).astype(np.float32)*3.0/16.0
+		av = np.array([[1,1,1,1,1],
+					   [1,1,1,1,1],
+					   [1,1,1,1,1],
+					   [1,1,1,1,1],
+					   [1,1,1,1,1]]).astype(np.float32)/25.0
+		kernel = tf.stack([I,lap,av],-1)[:,:,None,:]
+		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
+		#kernel = tf.stack([I,av],-1)[:,:,None,:]
+		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
+
 	
 	def __str__(self):
 		"""
@@ -102,7 +137,7 @@ class NCA(tf.keras.Model):
 		print("Neural Cellular Automata model")
 		print("_________________________________________________________________________________")
 		print("Stochastic firing rate:         {fr}".format(fr=self.FIRE_RATE))
-		print("Number of hidden channels:      {hc}".format(hc=self.N_CHANNELS))
+		print("Number of channels:             {hc}".format(hc=self.N_CHANNELS))
 		print("Activation function: 		   {ac}".format(ac=self.ACTIVATION))
 		print("_________________________________________________________________________________")
 		print("		Neural Network update function:")
@@ -197,7 +232,8 @@ class NCA(tf.keras.Model):
 		TARGET_SIZE = x0.shape[1]
 		x0 = x0[0:N_BATCHES] # If initial condition is too wide in batches dimension, reduce it
 		trajectory = np.zeros((T,N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS),dtype="float32")
-	
+		#print(trajectory.shape)
+		#print(x0.shape)
 		#--- Setup initial conditions
 		if x0.shape[-1]<self.N_CHANNELS: # If x0 has less channels than the NCA, pad zeros to x0
 			z0 = tf.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
@@ -217,7 +253,7 @@ class NCA(tf.keras.Model):
 			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
 				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
 			_mask = tf.zeros((x0.shape),dtype="float32")
-			_mask[...,4]=1
+			_mask[...,self.OBS_CHANNELS]=1
 			x0 = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*x0
 			#ones = np.ones(5)
 			self.ADHESION_MASK = tf.convert_to_tensor(self.ADHESION_MASK)
