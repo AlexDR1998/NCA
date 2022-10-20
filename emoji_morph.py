@@ -97,6 +97,29 @@ def main():
 	if index==7:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
 							 "emoji_alien_monster_rooster_stable_high_quality")
+	
+	if index==8:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 "emoji_alien_monster_rooster_wasserstein_channels",
+							 LOSS_FUNC=loss_sliced_wasserstein_channels)
+
+	if index==9:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 "emoji_alien_monster_rooster_wasserstein_grids",
+							 LOSS_FUNC=loss_sliced_wasserstein_grid)
+
+	if index==10:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 "emoji_alien_monster_rooster_wasserstein_rotations",
+							 LOSS_FUNC=loss_sliced_wasserstein_rotate)
+
+
+
+
+
+
+
+
 	"""
 	if index==6:
 		train_emoji_sequence(["crab.png",
