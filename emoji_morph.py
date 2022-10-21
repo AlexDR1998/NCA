@@ -15,7 +15,7 @@ def train_emoji_sequence(filename_sequence,model_filename,downsample=2,LOSS_FUNC
 	data = load_emoji_sequence(filename_sequence,downsample)
 	ca = NCA(N_CHANNELS,ACTIVATION="swish",REGULARIZER=0.1)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
-	trainer.data_pad_augment(2,15)
+	trainer.data_pad_augment(2,2)
 	trainer.data_noise_augment()
 	trainer.train_sequence(4000,60,LOSS_FUNC=LOSS_FUNC)
 
@@ -112,6 +112,11 @@ def main():
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
 							 "emoji_alien_monster_rooster_wasserstein_rotations",
 							 LOSS_FUNC=loss_sliced_wasserstein_rotate)
+	if index==11:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 "emoji_alien_monster_rooster_spectral",
+							 LOSS_FUNC=loss_spectral)
+
 
 
 
