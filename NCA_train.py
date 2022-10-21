@@ -295,7 +295,7 @@ class NCA_Trainer(object):
 					
 		if update_gradients:
 			grads = g.gradient(mean_loss,self.NCA_model.weights)
-			grads = [g/(tf.norm(g)+1e-8) for g in grads]
+			#grads = [g/(tf.norm(g)+1e-8) for g in grads]
 			self.trainer.apply_gradients(zip(grads, self.NCA_model.weights))
 		return x, mean_loss,losses
 
@@ -331,7 +331,7 @@ class NCA_Trainer(object):
 		#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
 		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
 		self.trainer = tf.keras.optimizers.Adam(lr_sched)
-		#trainer = tf.keras.optimizers.RMSprop(lr_sched)
+		#self.trainer = tf.keras.optimizers.RMSprop(lr_sched)
 		
 		
 		#--- Setup adhesion and decay masks
@@ -967,16 +967,28 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		assert x0.shape[-1]==self.OBS_CHANNELS, "Observable channels of NCA does not match data dimensions"
 
 		"""
-		self.x0 = tf.convert_to_tensor(self.data[0])
-		self.x0_true = tf.convert_to_tensor(self.data[0])
-		self.data = tf.convert_to_tensor(self.data)
 		self.T = 1
 		"""
+		#--- Renormalise data to be between 0 and 1
+		data_max = np.max(self.data)
+		data_min = np.min(self.data)
+		self.data = (self.data-data_min)/(data_max-data_min)
+		#self.data = self.data.reshape((-1,N_BATCHES,self.data.shape[2],self.data.shape[3],self.data.shape[4]))
+		
+
+		#--- Modifications to alternative batch training trick
+
+		self.x0 = self.x0.reshape((-1,N_BATCHES,self.x0.shape[1],self.x0.shape[2],self.x0.shape[3]))
+		self.x0 = tf.convert_to_tensor(self.x0[0])
+		
+
+		#self.x0_true = tf.convert_to_tensor(self.data[0])
+		#self.data = tf.convert_to_tensor(self.data)
+		
 		print("Data shape: "+str(self.data.shape))
 		print("X0 shape: "+str(self.x0.shape))
 		print("Target shape: "+str(self.target.shape))
 		
-		#self.data = self.data.reshape((-1,N_BATCHES,self.data.shape[2],self.data.shape[3],self.data.shape[4]))
 		
 		#print(self.data.shape)
 		
@@ -1000,6 +1012,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 		
 		#--- Log the graph structure of the NCA
+		"""
 		tf.summary.trace_on(graph=True,profiler=True)
 		y = self.NCA_model.perceive(self.x0)
 		with train_summary_writer.as_default():
@@ -1009,7 +1022,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		x = self.NCA_model(self.x0)
 		with train_summary_writer.as_default():
 			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
-		
+		"""
 		#--- Log the target image and initial condtions
 		
 
@@ -1125,14 +1138,13 @@ class NCA_PDE_Trainer(NCA_Trainer):
 									 hidden_channels,step=i)
 
 
-	'''
-	def loss_func(self,x):
+	def loss_func(self,x,x_true):
 		"""
 			float32 (N_BATCHES,size,size,N_CHANNELS),float32 (N_BATCHES,size,size,N_CHANNELS) -> float32
 		"""
 		#print("X shape: "+str(x.shape))
 		#print("X true shape: "+str(x_true.shape))
-		eu = tf.math.reduce_euclidean_norm((x-self.target),[-2,-3,-1])
+		eu = tf.math.reduce_euclidean_norm((x[...,:self.OBS_CHANNELS]-x_true),[-2,-3,-1])
 		# self.N_BATCHES: removes the 'hidden' 12h state
 		return tf.reduce_mean(tf.reshape(eu,(-1,self.N_BATCHES)),-1)
 
@@ -1142,36 +1154,40 @@ class NCA_PDE_Trainer(NCA_Trainer):
 	
 
 	def train_step(self,x0,iter_n):
-		with tf.GradientTape() as g:
-			loss = tf.Variable([0.0],trainable=True)
-			#g.watch(x0)
-			g.watch(loss)
-			#losses = np.zeros(iter_n)
-			i = np.random.randint(iter_n-1)
-			#print(i)
-			x = self.NCA_model(self.data[i])
-			loss = self.loss_func(x,self.data[i+1])
-			#x = tf.identity(x0)
+		
+		loss = tf.Variable([0.0],trainable=True)
+		#g.watch(x0)
+		
+		losses = np.zeros(iter_n)
+		
+		
+		x = tf.identity(x0) # Wrong shape/setup of x0
+		#print(x.shape)
 
-
-			"""
-			for i in tqdm(range(1,iter_n)):
+		
+		for i in range(1,iter_n):
+			with tf.GradientTape() as g:
 				x = self.NCA_model(x)
-				#print(x)
-				#print("X shape: "+str(x.shape))
-				_l = self.loss_func(x,self.data[i])
-				#print(_l)
-				losses[i] = _l
-				loss.assign_add(_l)
-			print(losses)
-			print(loss)
-			"""
-		grads = g.gradient(loss,self.NCA_model.weights)
+			
+				loss = self.loss_func(x,self.data[i])
+			if i==1:
+				grads = g.gradient(loss,self.NCA_model.weights)
+			else:
+				scaling = tf.random.uniform(shape=[1])
+				g_update = [scaling*g for g in g.gradient(loss,self.NCA_model.weights)]
+				#print(g_update.shape)
+				grads+=g_update
+			losses[i]=loss
+
+		losses[0] = np.mean(losses[1:])	
+		#print(losses)
+		#print(loss)
+			
 		#print(grads)
 		grads = [g/(tf.norm(g)+1e-8) for g in grads]
 		self.trainer.apply_gradients(zip(grads, self.NCA_model.weights))
 		
-		return x, loss
+		return x, losses
 
 	def train_sequence(self,TRAIN_ITERS):
 		"""
@@ -1207,8 +1223,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		print(self.x0_true.shape)
 		for i in tqdm(range(TRAIN_ITERS)):
 			
-			x,loss = self.train_step(self.x0,self.T_steps)#,i%4==0)
-			
+			x,losses = self.train_step(self.x0,self.T_steps)#,i%4==0)
+			loss = losses[0] #--- Mean loss stored at losses[0]
 			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
 			if (loss<best_mean_loss) and (i>TRAIN_ITERS//10):
 				if self.model_filename is not None:
@@ -1220,7 +1236,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			
 			
 			#--- Write to log
-			self.tb_training_loop_log_sequence(loss,x,i)
+			self.tb_training_loop_log_sequence(losses,x,i)
 		print("-------- Training complete ---------")
 		#--- Write resulting animation to tensorboard
 		#print(self.x0.shape)	
@@ -1234,4 +1250,5 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		#if model_filename is not None:
 		#	ca.save_wrapper(model_filename)
 
+	'''
 	'''
