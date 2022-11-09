@@ -11,7 +11,7 @@ import scipy as sp
 from tensorflow.core.util import event_pb2
 from tensorflow.python.lib.io import tf_record
 from tensorflow.python.framework import tensor_util
-
+import tensorflow as tf
 
 """
   Utilities and helper functions to handle loading and preprocessing of data
@@ -292,6 +292,41 @@ def adhesion_mask_batch(data):
   return masks
 
 
+
+
+
+
+def periodic_padding(tensor,axis,padding=1):
+  """
+    Taken from: https://stackoverflow.com/questions/39088489/tensorflow-periodic-padding
+
+    add periodic padding to a tensor for specified axis
+    tensor: input tensor
+    axis: on or multiple axis to pad along, int or tuple
+    padding: number of cells to pad, int or tuple
+
+    return: padded tensor
+  """
+
+
+  if isinstance(axis,int):
+    axis = (axis,)
+  if isinstance(padding,int):
+    padding = (padding,)
+
+  ndim = len(tensor.shape)
+  for ax,p in zip(axis,padding):
+  # create a slice object that selects everything from all axes,
+  # except only 0:p for the specified for right, and -p: for left
+
+    ind_right = [slice(-p,None) if i == ax else slice(None) for i in range(ndim)]
+    ind_left = [slice(0, p) if i == ax else slice(None) for i in range(ndim)]
+    right = tensor[ind_right]
+    left = tensor[ind_left]
+    middle = tensor
+    tensor = tf.concat([right,middle,left], axis=ax)
+
+  return tensor
 
 
 

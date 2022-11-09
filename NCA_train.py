@@ -299,7 +299,7 @@ class NCA_Trainer(object):
 			self.trainer.apply_gradients(zip(grads, self.NCA_model.weights))
 		return x, mean_loss,losses
 
-	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None):
+	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=8e-3):
 		"""
 			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 			
@@ -320,6 +320,9 @@ class NCA_Trainer(object):
 			LOSS_FUNC : (float32 tensor [N_BATCHES,X,Y,N_CHANNELS])**2 -> float32 tensor [N_BATCHES] optional
 				Alternative loss function
 
+			LEARN_RATE : float32 optional
+				Learning rate for optimisation algorithm
+			
 			Returns
 			-------
 			None
@@ -327,10 +330,11 @@ class NCA_Trainer(object):
 		
 		#--- Setup training algorithm
 
-		lr = 2e-3
+		lr = LEARN_RATE
 		#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
 		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
-		self.trainer = tf.keras.optimizers.Adam(lr_sched)
+		self.trainer = tf.keras.optimizers.Adagrad(lr_sched)
+		#self.trainer = tf.keras.optimizers.Adadelta()#(lr_sched)
 		#self.trainer = tf.keras.optimizers.RMSprop(lr_sched)
 		
 		
@@ -356,7 +360,7 @@ class NCA_Trainer(object):
 		print(self.x0_true.shape)
 		for i in tqdm(range(TRAIN_ITERS)):
 			R = np.random.uniform()<UPDATE_RATE
-			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R)#,i%4==0)
+			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC)#,i%4==0)
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
 			if N_BATCHES>1:
 				self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
@@ -977,10 +981,10 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		
 
 		#--- Modifications to alternative batch training trick
-
+		"""
 		self.x0 = self.x0.reshape((-1,N_BATCHES,self.x0.shape[1],self.x0.shape[2],self.x0.shape[3]))
 		self.x0 = tf.convert_to_tensor(self.x0[0])
-		
+		"""
 
 		#self.x0_true = tf.convert_to_tensor(self.data[0])
 		#self.data = tf.convert_to_tensor(self.data)
@@ -1137,6 +1141,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 					tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
 									 hidden_channels,step=i)
 
+	
+	'''
 
 	def loss_func(self,x,x_true):
 		"""
@@ -1250,5 +1256,4 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		#if model_filename is not None:
 		#	ca.save_wrapper(model_filename)
 
-	'''
 	'''

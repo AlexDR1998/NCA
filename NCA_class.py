@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import scipy as sp
 import datetime
-
+from NCA_utils import periodic_padding
 
 class NCA(tf.keras.Model):
 	""" 
@@ -16,7 +16,7 @@ class NCA(tf.keras.Model):
 	"""
 
 
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="swish",LAYERS=2,OBS_CHANNELS=4,REGULARIZER=0.01):
+	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="relu",LAYERS=1,OBS_CHANNELS=4,REGULARIZER=0.01,PADDING="zero"):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -36,6 +36,8 @@ class NCA(tf.keras.Model):
 				How many of the channels are 'observable', i.e. fitted to target data
 			REGULARIZER : float optional
 				Regularizer coefficient for layer weights
+			PADDING : string optional
+				zero, flat or periodic boundary conditions
 		"""
 
 		if OBS_CHANNELS>N_CHANNELS:
@@ -48,6 +50,7 @@ class NCA(tf.keras.Model):
 		self.FIRE_RATE=FIRE_RATE # controls stochastic updates - i.e. grid isn't globaly synchronised
 		self.N_layers = LAYERS
 		self.ACTIVATION = ACTIVATION
+		self.PADDING = PADDING
 
 
 
@@ -92,8 +95,8 @@ class NCA(tf.keras.Model):
 		lap = np.array([[0.25,0.5,0.25],
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
-		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
-		kernel = tf.stack([I,lap,av],-1)[:,:,None,:]
+		#av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
+		kernel = tf.stack([I,lap],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av],-1)[:,:,None,:]
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
@@ -196,15 +199,38 @@ class NCA(tf.keras.Model):
 				new state space of NCA, with (stochastically masked) update applied across all channels and batches
 		"""
 		#print(x.shape)
+
+		#--- If non-zero padding option given, pad x
+		if self.PADDING=="periodic":
+			x = periodic_padding(x,axis=(1,2),padding=(2,2))
+		if self.PADDING=="flat":
+			x = tf.pad(x,tf.constant([[0,0],[2,2],[2,2],[0,0]]),"SYMMETRIC")
+		
+
+
+		#--- If x was padded, remove the padding effect from y
+		#if self.PADDING!="zero":
+		#	y = self.perceive(x)[:,1:-1,1:-1]
+		#else:
+		#
+
 		y = self.perceive(x)
-		#print(y.shape)
-		dx = self.dense_model(y)*step_size
+
+
+
+		dx = (self.dense_model(y)*step_size)
+
+
 		if fire_rate is None:
 			fire_rate = self.FIRE_RATE
 		update_mask = tf.random.normal(tf.shape(x[:,:,:,:1])) <= fire_rate
 
 		x_new = x + dx*tf.cast(update_mask,tf.float32)
-		return x_new
+		
+		if self.PADDING!="zero":
+			return x_new[:,2:-2,2:-2]
+		else:
+			return x_new
 
 
 	def run_init(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
@@ -408,141 +434,6 @@ class NCA(tf.keras.Model):
 			filename=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		
 		self.save("models/"+filename)
-
-
-
-"""===========================================================================================================================
-
-	Below are subclasses of the NCA class with specific activation functions and network architectures
-
-"""
-"""
-
-class NCA_sigmoid_2layer(NCA):
-	
-		#Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
-	
-
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid_2layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
-
-		#--- Set up dense nn for perception vector
-		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
-								   activation=tf.nn.sigmoid,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
-								   activation=tf.nn.sigmoid,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-
-		self.N_layers = 2
-		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-		print(self.dense_model.summary())
-
-	def run(self,*args,**kwargs):
-		return super().run(*args,**kwargs)
-
-	#def call(self,*args,**kwargs):
-	#	return super().call(*args,**kwargs)
-
-	#def call(self,*args,**kwargs):
-	#	return super().call(*args,**kwargs)
-
-
-class NCA_sigmoid_1layer(NCA):
-	
-		Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
-	
-
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_sigmoid_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
-
-		#--- Set up dense nn for perception vector
-		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
-								   activation=tf.nn.sigmoid,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-
-		self.N_layers = 1
-		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-		print(self.dense_model.summary())
-
-class NCA_swish_2layer(NCA):
-	
-		Sub-class of NCA with sigmoidal activation functions and 2 hidden layers
-	
-
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_swish_2layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
-
-		#--- Set up dense nn for perception vector
-		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
-								   activation=tf.nn.swish,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-			tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
-								   activation=tf.nn.swish,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-
-		self.N_layers = 2
-		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-		print(self.dense_model.summary())
-
-class NCA_swish_1layer(NCA):
-	
-		#Sub-class of NCA with sigmoidal activation functions and 1 hidden layers
-	
-
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_swish_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
-
-		#--- Set up dense nn for perception vector
-		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
-								   activation=tf.nn.swish,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-
-		self.N_layers = 1
-		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-		print(self.dense_model.summary())
-
-class NCA_linear_1layer(NCA):
-	
-		#Sub-class of NCA with no activation functions and 1 hidden layers. Basically just a matrix multiplication
-	
-
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None):
-		super(NCA_linear_1layer,self).__init__(N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None)
-
-		#--- Set up dense nn for perception vector
-		self.dense_model = tf.keras.Sequential([
-			tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
-								   activation=None,
-								   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-								   use_bias=False),
-
-			tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
-
-		self.N_layers = 1
-		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
-		print(self.dense_model.summary())
-
-"""
-
 
 
 

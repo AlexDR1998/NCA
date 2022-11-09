@@ -13,7 +13,7 @@ index=int(sys.argv[1])
 
 def train_emoji_sequence(filename_sequence,model_filename,downsample=2,LOSS_FUNC=None):
 	data = load_emoji_sequence(filename_sequence,downsample)
-	ca = NCA(N_CHANNELS,ACTIVATION="swish",REGULARIZER=0.1)
+	ca = NCA(N_CHANNELS,ACTIVATION="relu",REGULARIZER=0.1,LAYERS=1)
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=model_filename)
 	trainer.data_pad_augment(2,2)
 	trainer.data_noise_augment()
@@ -96,27 +96,34 @@ def main():
 						  "emoji_pairs_swish_microbe_rooster")
 	if index==7:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
-							 "emoji_alien_monster_rooster_stable_high_quality")
+							 "emoji_alien_monster_rooster_euclidean_adagrad")
 	
 	if index==8:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
-							 "emoji_alien_monster_rooster_wasserstein_channels",
+							 "emoji_alien_monster_rooster_wasserstein_channels_adagrad",
 							 LOSS_FUNC=loss_sliced_wasserstein_channels)
 
 	if index==9:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
-							 "emoji_alien_monster_rooster_wasserstein_grids",
+							 "emoji_alien_monster_rooster_wasserstein_grids_adagrad",
 							 LOSS_FUNC=loss_sliced_wasserstein_grid)
 
 	if index==10:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
-							 "emoji_alien_monster_rooster_wasserstein_rotations",
+							 "emoji_alien_monster_rooster_wasserstein_rotations_adagrad",
 							 LOSS_FUNC=loss_sliced_wasserstein_rotate)
 	if index==11:
 		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
-							 "emoji_alien_monster_rooster_spectral",
+							 "emoji_alien_monster_rooster_spectral_adagrad",
 							 LOSS_FUNC=loss_spectral)
-
+	if index==12:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 "emoji_alien_monster_rooster_bhattacharyya_adagrad",
+							 LOSS_FUNC=loss_bhattacharyya)
+	if index==13:
+		train_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],
+							 "emoji_alien_monster_rooster_hellinger_adagrad",
+							 LOSS_FUNC=loss_hellinger)
 
 
 

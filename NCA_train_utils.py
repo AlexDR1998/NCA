@@ -168,9 +168,68 @@ def loss_spectral(X,Y):
 	return tf.math.reduce_mean(tf.math.abs(X_fft-Y_fft),axis=[0,1,3])
 
 
+def loss_bhattacharyya(X,Y):
+	"""
+		Implementation of bhattarcharyya distance of X and Y
+		
+		As described in: https://en.wikipedia.org/wiki/Bhattacharyya_distance
+		
+		Note that this assumes X and Y are probability distributions -> normalise them
+		
+		Parameters
+		----------
+		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+	"""
+	eps = 1e-9
+	X = tf.math.abs(X)
+	Y = tf.math.abs(Y)
+	X_norm = tf.math.divide(X+eps,tf.math.reduce_sum(X+eps,axis=[1,2],keepdims=True))
+	Y_norm = tf.math.divide(Y+eps,tf.math.reduce_sum(Y+eps,axis=[1,2],keepdims=True))
+	BC = tf.math.reduce_sum(tf.math.sqrt(X_norm*Y_norm),axis=[1,2,3])
+
+	return -tf.math.log(BC)
+
+def loss_hellinger(X,Y):
+	"""
+		Implementation of hellinger distance of X and Y
+		
+		As described in: https://en.wikipedia.org/wiki/Hellinger_distance
+		
+		Note that this assumes X and Y are probability distributions -> normalise them
+		
+		Parameters
+		----------
+		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+	"""
+	eps=1e-9
+	X = tf.math.abs(X)
+	Y = tf.math.abs(Y)
+	X_norm = tf.math.divide(X+eps,tf.math.reduce_sum(X+eps,axis=[1,2],keepdims=True))
+	Y_norm = tf.math.divide(Y+eps,tf.math.reduce_sum(Y+eps,axis=[1,2],keepdims=True))
+	sqrt_diff = tf.math.sqrt(X_norm) - tf.math.sqrt(Y_norm)
+	
+	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])
+	return tf.math.reduce_mean(H_bc,axis=-1)
+
+
+"""
 X = np.random.uniform(size=(5,128,128,7))
 #Y = np.random.uniform(size=(5,128,128,7))
+#Y[:,:64]=0
 Y = np.zeros((5,128,128,7))
 #X[2] = 1
 
-print(loss_sliced_wasserstein_rotate(X,Y))
+print(loss_hellinger(X,Y))
+"""
