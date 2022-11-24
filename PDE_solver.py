@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sp
 import tensorflow as tf
 from tqdm import tqdm
+from NCA_utils import periodic_padding
 """
 A class for the simulation of arbitrary systems of time dependent PDEs with 2 spatial dimensions
 
@@ -10,20 +11,30 @@ A class for the simulation of arbitrary systems of time dependent PDEs with 2 sp
 class PDE_solver(object):
 	#Runs numerical solutions PDEs of the form dX/dt = F(X,gradX,grad^2X)
 
-	def __init__(self,F,N_CHANNELS,N_BATCHES,size=[128,128]):
+	def __init__(self,F,N_CHANNELS,N_BATCHES,size=[128,128],PADDING="periodic"):
+		"""
 		#Expects F to be of 4 2D fields of N_CHANNEL channels/dimensions
+			Parameters
+			----------
+
+			PADDING : string optional
+				zero, flat or periodic boundary conditions
+		
+		"""
 
 		self.F = F
 		self.X = np.zeros((N_BATCHES,size[0],size[1],N_CHANNELS))
 		self.N_CHANNELS=N_CHANNELS
 		self.N_BATCHES=N_BATCHES
+		self.PADDING=PADDING
+
 		dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
 		dy = dx.T
 		lap = np.array([[0.25,0.5,0.25],
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
-		
 		kernel = tf.stack([dx,dy,lap],-1)[:,:,None,:]
+		
 		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
 		#kernel = tf.stack([I,av],-1)[:,:,None,:]
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
@@ -50,8 +61,17 @@ class PDE_solver(object):
 	
 	def update(self,step_size):
 		
+		if self.PADDING=="periodic":
+			X_pad = periodic_padding(self.X,axis=(1,2),padding=(1,1))
+		elif self.PADDING=="flat":
+			X_pad = tf.pad(self.X,tf.constant([[0,0],[1,1],[1,1],[0,0]]))
+		else:
+			X_pad = self.X
+			
+		_X = self.calculate_derivatives(X_pad,self.KERNEL)
 
-		_X = self.calculate_derivatives(self.X,self.KERNEL)
+		if self.PADDING!="zero":
+			_X = _X[:,1:-1,1:-1]
 
 		Xdx = _X[...,:self.N_CHANNELS]
 		Xdy = _X[...,self.N_CHANNELS:2*self.N_CHANNELS]
@@ -64,14 +84,14 @@ class PDE_solver(object):
 
 	def run(self,iterations,step_size=0.1,initial_condition=None):
 		#Apply update iteratively and output full solution
-		trajectory = np.zeros((iterations+1,N_BATCHES,self.X.shape[1],self.X.shape[2],self.N_CHANNELS))
+		trajectory = np.zeros((iterations+1,self.N_BATCHES,self.X.shape[1],self.X.shape[2],self.N_CHANNELS))
 		if initial_condition is None:
 			initial_condition = 2*np.random.uniform(size=self.X.shape)-1
 		trajectory[0] = initial_condition
 		self.X = initial_condition.astype(np.float32)
 
 		for i in tqdm(range(1,iterations+1)):
-			trajectory[i] = self.update(step_size)[0]
+			trajectory[i] = self.update(step_size)
 		return trajectory
 
 

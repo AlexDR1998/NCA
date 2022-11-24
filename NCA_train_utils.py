@@ -1,6 +1,8 @@
 import numpy as np 
 import tensorflow as tf
 import tensorflow_addons as tfa
+import io
+import matplotlib.pyplot as plt
 """
 	Some utilities and helper functions used by NCA_train.py
 
@@ -191,9 +193,10 @@ def loss_bhattacharyya(X,Y):
 	Y = tf.math.abs(Y)
 	X_norm = tf.math.divide(X+eps,tf.math.reduce_sum(X+eps,axis=[1,2],keepdims=True))
 	Y_norm = tf.math.divide(Y+eps,tf.math.reduce_sum(Y+eps,axis=[1,2],keepdims=True))
-	BC = tf.math.reduce_sum(tf.math.sqrt(X_norm*Y_norm),axis=[1,2,3])
+	BC = tf.math.reduce_sum(tf.math.sqrt(X_norm*Y_norm),axis=[1,2])
+	B_loss = -tf.math.log(BC)
 
-	return -tf.math.log(BC)
+	return tf.math.reduce_mean(B_loss,axis=-1) 
 
 def loss_hellinger(X,Y):
 	"""
@@ -222,6 +225,57 @@ def loss_hellinger(X,Y):
 	
 	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])
 	return tf.math.reduce_mean(H_bc,axis=-1)
+
+
+def plot_to_image(figure):
+	"""Converts the matplotlib plot specified by 'figure' to a PNG image and
+	returns it. The supplied figure is closed and inaccessible after this call."""
+	# Save the plot to a PNG in memory.
+	buf = io.BytesIO()
+	plt.savefig(buf, format='png')
+	# Closing the figure prevents it from being displayed directly inside
+	# the notebook.
+	plt.close(figure)
+	buf.seek(0)
+	# Convert PNG buffer to TF image
+	image = tf.image.decode_png(buf.getvalue(), channels=4)
+	# Add the batch dimension
+	image = tf.expand_dims(image, 0)
+	return image
+
+
+
+def index_to_trainer_parameters(index):
+	"""
+		Takes job array index from 1-35 and constructs pair of loss function and optimiser
+	"""
+	loss_funcs = [loss_sliced_wasserstein_channels,
+				  loss_sliced_wasserstein_grid,
+				  loss_sliced_wasserstein_rotate,
+				  loss_spectral,
+				  loss_bhattacharyya,
+				  loss_hellinger,
+				  None]
+	loss_func_name =["sliced_wasserstein_channels",
+					 "sliced_wasserstein_grid",
+					 "sliced_wasserstein_rotate",
+					 "spectral",
+					 "bhattachryya",
+					 "hellinger",
+					 "euclidean"]
+
+	optimisers = ["Adagrad",
+				  "Adam",
+				  "Adadelta",
+				  "Nadam",
+				  "RMSprop"]
+
+	L = len(loss_funcs)
+	
+	opt = optimisers[index//L]
+	loss= loss_funcs[index%L]
+	loss_name = loss_func_name[index%L]
+	return loss,opt,loss_name
 
 
 """

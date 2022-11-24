@@ -16,7 +16,15 @@ class NCA(tf.keras.Model):
 	"""
 
 
-	def __init__(self,N_CHANNELS,FIRE_RATE=0.5,ADHESION_MASK=None,ACTIVATION="relu",LAYERS=1,OBS_CHANNELS=4,REGULARIZER=0.01,PADDING="zero"):
+	def __init__(self,N_CHANNELS,
+			     FIRE_RATE=0.5,
+			     ADHESION_MASK=None,
+			     ACTIVATION="relu",
+			     LAYERS=3,
+			     OBS_CHANNELS=4,
+			     REGULARIZER=0.01,
+			     PADDING="zero",
+			     KERNEL_TYPE="ID_LAP"):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -38,6 +46,12 @@ class NCA(tf.keras.Model):
 				Regularizer coefficient for layer weights
 			PADDING : string optional
 				zero, flat or periodic boundary conditions
+			KERNEL_TYPE : string optional
+				What type of kernels to use. Valid options are:
+				 "ID_LAP", "ID_AV", "ID_DIFF", 						- Identity and 1 other
+				 "ID_LAP_AV","ID_DIFF_AV","ID_DIFF_LAP",			- Identity and 2 others
+				 "ID_DIFF_LAP_AV",									- Identity and all 3 others
+				 "DIFF_LAP_AV","DIFF_AV","LAP_AV"					- Average and other non-identity
 		"""
 
 		if OBS_CHANNELS>N_CHANNELS:
@@ -51,7 +65,7 @@ class NCA(tf.keras.Model):
 		self.N_layers = LAYERS
 		self.ACTIVATION = ACTIVATION
 		self.PADDING = PADDING
-
+		self.KERNEL_TYPE=KERNEL_TYPE
 
 
 		if ADHESION_MASK is not None:
@@ -62,43 +76,78 @@ class NCA(tf.keras.Model):
 			ones = tf.ones(self.OBS_CHANNELS)
 
 		
-		#--- Set up dense nn for perception vector - removed and added to subclasses
+		#-------------------------------------------------------------------------------
+		#--- Set up dense nn for perception vector based on LAYERS parameter
 		
 		
-		if LAYERS==2:
+		if LAYERS==3:
 			self.dense_model = tf.keras.Sequential([
 				tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
 									   activation=ACTIVATION,
-									   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-									   use_bias=False),
+									   kernel_regularizer=tf.keras.regularizers.L1(REGULARIZER),
+									   kernel_initializer=tf.keras.initializers.RandomNormal(mean=0., stddev=0.1),
+									   use_bias=False,
+									   trainable=True),
 				tf.keras.layers.Conv2D(2*self.N_CHANNELS,1,
 									   activation=ACTIVATION,
-									   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-									   use_bias=False),
-				tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+									   kernel_regularizer=tf.keras.regularizers.L1(REGULARIZER),
+									   kernel_initializer=tf.keras.initializers.RandomNormal(mean=0., stddev=0.1),
+									   use_bias=False,
+									   trainable=True),
+				tf.keras.layers.Conv2D(self.N_CHANNELS,1,
+									   activation=None,
+									   kernel_initializer=tf.keras.initializers.Zeros(),
+									   trainable=True)])
 		
-		elif LAYERS==1:
+		elif LAYERS==2:
 			self.dense_model = tf.keras.Sequential([
 				tf.keras.layers.Conv2D(4*self.N_CHANNELS,1,
 									   activation=ACTIVATION,
-									   kernel_regularizer=tf.keras.regularizers.L1(0.01),
-									   use_bias=False),
-				tf.keras.layers.Conv2D(self.N_CHANNELS,1,activation=None,kernel_initializer=tf.keras.initializers.Zeros())])
+									   kernel_regularizer=tf.keras.regularizers.L1(REGULARIZER),
+									   kernel_initializer=tf.keras.initializers.RandomNormal(mean=0., stddev=0.1),
+									   use_bias=False,
+									   trainable=True),
+				tf.keras.layers.Conv2D(self.N_CHANNELS,1,
+									   activation=None,
+									   kernel_initializer=tf.keras.initializers.Zeros(),
+									   trainable=True)])
 		
 
 
-		#--- Set up convolution kernels
+		#--- Prepare convolution kernels
 		_i = np.array([0,1,0],dtype=np.float32)
 		I  = np.outer(_i,_i)
-		#dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
-		#dy = dx.T
+		dx = (np.outer([1,2,1],[-1,0,1])/8.0).astype(np.float32)
+		dy = dx.T
 		lap = np.array([[0.25,0.5,0.25],
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
-		#av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
-		kernel = tf.stack([I,lap],-1)[:,:,None,:]
-		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
-		#kernel = tf.stack([I,av],-1)[:,:,None,:]
+		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
+		
+
+		#------------------------------------------------------------------------------
+		#--- Combine kernels together based on KERNEL_TYPE parameter
+		if self.KERNEL_TYPE=="ID_LAP":
+			kernel = tf.stack([I,lap],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="ID_LAP_AV":
+			kernel = tf.stack([I,lap,av],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="ID_AV":
+			kernel = tf.stack([I,av],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="ID_DIFF":
+			kernel = tf.stack([I,dx,dy],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="ID_DIFF_AV":
+			kernel = tf.stack([I,dx,dy,av],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="ID_DIFF_LAP":
+			kernel = tf.stack([I,dx,dy,lap],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="ID_DIFF_LAP_AV":
+			kernel = tf.stack([I,dx,dy,lap,av],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="LAP_AV":
+			kernel = tf.stack([lap,av],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="DIFF_LAP_AV":
+			kernel = tf.stack([dx,dy,lap,av],-1)[:,:,None,:]
+		if self.KERNEL_TYPE=="DIFF_AV":
+			kernel = tf.stack([dx,dy,av],-1)[:,:,None,:]
+
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
 		print(self.dense_model.summary())
@@ -290,7 +339,7 @@ class NCA(tf.keras.Model):
 		return trajectory,_mask
 
 
-	def run(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
+	def run(self,x0,T,N_BATCHES=1,ADHESION_MASK=None,PADDING=None):
 		"""
 			Iterates self.call several times to perform a NCA simulation.
 			
@@ -302,7 +351,11 @@ class NCA(tf.keras.Model):
 				number of timesteps to run for		
 			N_BATCHES : int=1
 				number of batches of simulations to run in parallel
-			
+			ADHESION_MASK : optional boolean array [size,size]
+				Mask representing presence of environmental factors (i.e. adhesive surfaces for cells)
+			PADDING : optional string
+				Overwrites self.PADDING if provided
+
 			Returns	
 			-------
 			trajectory : float32 array [T,batches,size,size,channels]
@@ -310,6 +363,9 @@ class NCA(tf.keras.Model):
 		"""
 
 		#--- Set up variables
+		if PADDING is not None:
+			self.PADDING=PADDING
+
 		trajectory,_mask=self.run_init(x0,T,N_BATCHES=N_BATCHES,ADHESION_MASK=ADHESION_MASK)
 		
 		#--- Run T iterations of NCA
@@ -410,7 +466,9 @@ class NCA(tf.keras.Model):
 
 	def get_config(self):
 		return {"N_CHANNELS":self.N_CHANNELS,
-				"FIRE_RATE": self.FIRE_RATE}
+				"FIRE_RATE": self.FIRE_RATE,
+				"LAYERS":self.N_layers,
+				"KERNELS":self.KERNEL_TYPE}
 				#"ADHESION_MASK":self.ADHESION_MASK,
 				#"dense_model":self.dense_model}
 	
