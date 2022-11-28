@@ -16,7 +16,7 @@ LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index)
 N_CHANNELS = 16
 N_BATCHES = 4
 OBS_CHANNELS=1
-TRAIN_ITERS = 20
+TRAIN_ITERS = 8000
 
 emoji_filename = "training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
