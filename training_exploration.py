@@ -10,7 +10,7 @@ import sys
 """
 
 
-index=int(sys.argv[1])
+index=int(sys.argv[1])-1
 LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index)
 
 N_CHANNELS = 16
