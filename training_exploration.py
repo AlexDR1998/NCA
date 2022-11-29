@@ -18,9 +18,9 @@ N_BATCHES = 4
 OBS_CHANNELS=1
 TRAIN_ITERS = 8000
 
-emoji_filename = "training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
+emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
-
+readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
@@ -60,10 +60,57 @@ ca_heat =NCA(N_CHANNELS,
 print(ca_heat)
 
 x0 = np.random.uniform(size=(N_BATCHES,64,64,OBS_CHANNELS)).astype(np.float32)
-x0[1,:32]=0
-mask=np.zeros((64,64,OBS_CHANNELS)).astype(int)
-mask[16:48,16:48]=1
-x0[2]*=mask
-x0[3]*=(1-mask)
-trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,100,model_filename=heat_filename)
+x0[0,24:40,24:40]=1
+x0[1,30:34]=1
+x0[2,30:34]=1
+x0[2,40:44,30:34]=0
+x0[2,20:24,24:40]=0
+
+x0[3,4:24,16:24]=0
+x0[3,42:46,40:60]=0
+x0[3,16:24,40:48]=1
+x0[3,40:48,16:24]=1
+trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,200,step_mul=10,model_filename=heat_filename)
+trainer.train_sequence(TRAIN_ITERS,1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
+
+
+
+#--- Reaction Diffusion equation ------------------------------------------------------------------------------
+
+def F_readif_2(X,Xdx,Xdy,Xdd,D=[1,0.2],f=0.061,k=0.06264):
+	# Reaction diffusion as described in https://www.karlsims.com/rd.html
+
+	ch_1 = D[0]*Xdd[...,0] - X[...,1]**2*X[...,0] + f*(1-X[...,0])
+	ch_2 = D[1]*Xdd[...,1] + X[...,1]**2*X[...,0] - (k+f)*X[...,1]
+	return tf.stack([ch_1,ch_2],-1)
+
+ca_readif =NCA(N_CHANNELS,
+			   ACTIVATION="swish",
+			   OBS_CHANNELS=OBS_CHANNELS,
+			   REGULARIZER=0.1,
+			   PADDING="periodic",
+			   LAYERS=2,
+			   KERNEL_TYPE="ID_LAP")
+
+print(ca_readif)
+
+
+
+
+x0 = np.ones((N_BATCHES,S,S,2)).astype(np.float32)
+
+#x0[1,:32]=0
+x0[0,24:40,24:40]=0
+x0[1,30:34]=0
+x0[2,30:34]=0
+x0[2,40:44,30:34]=0
+x0[2,20:24,24:40]=0
+
+x0[3,4:24,16:24]=0
+x0[3,42:46,40:60]=0
+x0[3,16:24,40:48]=0
+x0[3,40:48,16:24]=0
+
+x0[...,1] = 1-x0[...,0]
+trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,200,step_mul=10,model_filename=readif_filename)
 trainer.train_sequence(TRAIN_ITERS,1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)

@@ -9,6 +9,7 @@ from NCA_train_utils import *
 
 
 
+
 class NCA_Trainer(object):
 	"""
 		Class to train NCA to data, as well as logging the process via tensorboard.
@@ -984,7 +985,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		Class to train a NCA to the output of a PDE simulation
 	"""
 
-	def __init__(self,NCA_model,x0,F,N_BATCHES,T,model_filename=None):
+	def __init__(self,NCA_model,x0,F,N_BATCHES,T,step_mul=1,model_filename=None):
 		"""
 			Initialiser method
 
@@ -1001,6 +1002,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 
 			T : int
 				How many steps to run the PDE model for
+			step_mul : int
+				How many PDE steps per NCA step
 			model_filename : str
 				name of directories to save tensorboard log and model parameters to.
 				log at :	'logs/gradient_tape/model_filename/train'
@@ -1019,8 +1022,12 @@ class NCA_PDE_Trainer(NCA_Trainer):
 	
 		self.T_steps = T
 
-		PDE_model = PDE_solver(F,NCA_model.OBS_CHANNELS,N_BATCHES,size=[x0.shape[1],x0.shape[2]])
-		data = PDE_model.run(iterations=T,step_size=0.1,initial_condition=x0)
+		PDE_model = PDE_solver(F,
+							   NCA_model.OBS_CHANNELS,
+							   N_BATCHES,
+							   size=[x0.shape[1],x0.shape[2]],
+							   PADDING=NCA_model.PADDING)
+		data = PDE_model.run(iterations=T*step_mul,step_size=1.0,initial_condition=x0)[::step_mul]
 		#--- Renormalise data to be between 0 and 1
 		data_max = np.max(data)
 		data_min = np.min(data)

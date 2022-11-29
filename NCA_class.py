@@ -468,7 +468,7 @@ class NCA(tf.keras.Model):
 		return {"N_CHANNELS":self.N_CHANNELS,
 				"FIRE_RATE": self.FIRE_RATE,
 				"LAYERS":self.N_layers,
-				"KERNELS":self.KERNEL_TYPE}
+				"KERNEL_TYPE":self.KERNEL_TYPE}
 				#"ADHESION_MASK":self.ADHESION_MASK,
 				#"dense_model":self.dense_model}
 	

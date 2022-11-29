@@ -3,6 +3,7 @@ import scipy as sp
 import tensorflow as tf
 from tqdm import tqdm
 from NCA_utils import periodic_padding
+import matplotlib.pyplot as plt
 """
 A class for the simulation of arbitrary systems of time dependent PDEs with 2 spatial dimensions
 
@@ -16,6 +17,8 @@ class PDE_solver(object):
 		#Expects F to be of 4 2D fields of N_CHANNEL channels/dimensions
 			Parameters
 			----------
+			F : float32 tensor [size[0],size[1],N_CHANNELS]**4 -> float32 tensor [size[0],size[1],N_CHANNELS]
+
 
 			PADDING : string optional
 				zero, flat or periodic boundary conditions
@@ -33,11 +36,24 @@ class PDE_solver(object):
 		lap = np.array([[0.25,0.5,0.25],
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
+		#lap = np.array([[0.05,0.2,0.05],
+		#				[0.2,-1,0.2],
+		#				[0.05,0.2,0.05]]).astype(np.float32)
+
 		kernel = tf.stack([dx,dy,lap],-1)[:,:,None,:]
-		
-		#kernel = tf.stack([I,av,dx,dy],-1)[:,:,None,:]
-		#kernel = tf.stack([I,av],-1)[:,:,None,:]
+		#kernel = tf.stack([lap],-1)[:,:,None,:]
+		print(kernel.shape)
+
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
+		
+		print(self.KERNEL.shape)
+		_d = np.zeros((N_BATCHES,size[0],size[1],N_CHANNELS)).astype(np.float32)
+		_d[:,:size[0]//2,:size[1]//2]=1
+		_d = tf.convert_to_tensor(_d)
+		plt.imshow(_d[0,...,0])
+		plt.show()
+		plt.imshow(tf.nn.depthwise_conv2d(_d,self.KERNEL,[1,1,1,1],"VALID")[0,...,1])
+		plt.show()
 	
 	@tf.function
 	def calculate_derivatives(self,X,KERNEL):
@@ -53,29 +69,33 @@ class PDE_solver(object):
 			Returns
 			-------
 			_X : float32 tensor [N_BATCHES,size,size,3*N_CHANNELS]
-				_X[...,:N_CHANNELS] 			-- Gradients in x
-				_X[...,N_CHANNELS:2*N_CHANNELS]	-- Gradients in y
-				_X[...,2*N_CHANNELS:]			-- Laplacian
+				_X[...,::3] 			-- Gradients in x
+				_X[...,1::3]			-- Gradients in y
+				_X[...,2::3]			-- Laplacian
 		"""
-		return tf.nn.depthwise_conv2d(X,KERNEL,[1,1,1,1],"SAME")
+		return tf.nn.depthwise_conv2d(X,KERNEL,[1,1,1,1],"VALID")
 	
 	def update(self,step_size):
 		
 		if self.PADDING=="periodic":
 			X_pad = periodic_padding(self.X,axis=(1,2),padding=(1,1))
 		elif self.PADDING=="flat":
-			X_pad = tf.pad(self.X,tf.constant([[0,0],[1,1],[1,1],[0,0]]))
+			X_pad = tf.pad(self.X,tf.constant([[0,0],[1,1],[1,1],[0,0]]),"SYMMETRIC")
 		else:
-			X_pad = self.X
+			X_pad = tf.pad(self.X,tf.constant([[0,0],[1,1],[1,1],[0,0]]),"CONSTANT")
 			
 		_X = self.calculate_derivatives(X_pad,self.KERNEL)
 
-		if self.PADDING!="zero":
-			_X = _X[:,1:-1,1:-1]
+		#if self.PADDING!="zero":
+		#	_X = _X[:,1:-1,1:-1]
 
-		Xdx = _X[...,:self.N_CHANNELS]
-		Xdy = _X[...,self.N_CHANNELS:2*self.N_CHANNELS]
-		Xdd = _X[...,2*self.N_CHANNELS:]
+		
+
+		Xdx = _X[...,::3]
+		Xdy = _X[...,1::3]
+		Xdd = _X[...,2::3]
+
+
 		#gradX_x = sp.signal.convolve2d(self.X,dx,boundary='wrap',mode='same') 
 		#gradX_y = sp.signal.convolve2d(self.X,dy,boundary='wrap',mode='same') 
 

@@ -5,7 +5,7 @@ import glob
 import numpy as np 
 from NCA_utils import *
 from tqdm import tqdm
-import cv2 
+#import cv2 
 import tensorflow as tf
 import seaborn as sns 
 """
@@ -174,7 +174,8 @@ class NCA_Visualiser(object):
     for i in tqdm(range(trajectory.shape[0])):
       plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
       plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
-  
+
+  """  
   def save_video(self,trajectory,filename):
     trajectory = np.clip(0,1,trajectory)
     trajectory[...,:3]*=trajectory[...,3:4]
@@ -190,7 +191,7 @@ class NCA_Visualiser(object):
         out.write(trajectory[i,0,...,:3])
 
     out.release()
-
+  """
   def distance_from_target(self,trajectory,target):
     dist = np.zeros(trajectory.shape[0])
     print(trajectory[0].shape)
@@ -425,6 +426,10 @@ class NCA_Visualiser(object):
       for j in tqdm(range(TRAIN_ITERS)):
         x0 = trajectory_iteration(x0)
       return x0
+
+
+
+
 def my_animate(img):
   """
     Boilerplate code to produce matplotlib animation
@@ -439,7 +444,7 @@ def my_animate(img):
   frames = [] # for storing the generated images
   fig = plt.figure()
   for i in range(img.shape[0]):
-    frames.append([plt.imshow(img[i],animated=True)])
+    frames.append([plt.imshow(img[i],vmin=0,vmax=1,animated=True)])
 
   ani = animation.ArtistAnimation(fig, frames, interval=50, blit=True,
                                 repeat_delay=0)
