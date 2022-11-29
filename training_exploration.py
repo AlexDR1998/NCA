@@ -46,7 +46,8 @@ trainer_emoji.train_sequence(TRAIN_ITERS,60,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMI
 
 #--- Heat equation -----------------------------------------------------------------------------------------------
 
-def F_heat(X,Xdx,Xdy,Xdd,D=1):
+
+def F_heat(X,Xdx,Xdy,Xdd,D=0.33):
 	return D*Xdd
 
 ca_heat =NCA(N_CHANNELS,
@@ -77,7 +78,7 @@ trainer.train_sequence(TRAIN_ITERS,1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
 
 #--- Reaction Diffusion equation ------------------------------------------------------------------------------
 
-def F_readif_2(X,Xdx,Xdy,Xdd,D=[1,0.2],f=0.061,k=0.06264):
+def F_readif_2(X,Xdx,Xdy,Xdd,D=[0.2,0.05],f=0.061,k=0.06264):
 	# Reaction diffusion as described in https://www.karlsims.com/rd.html
 
 	ch_1 = D[0]*Xdd[...,0] - X[...,1]**2*X[...,0] + f*(1-X[...,0])
