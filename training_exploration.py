@@ -86,7 +86,7 @@ def F_readif_2(X,Xdx,Xdy,Xdd,D=[1,0.2],f=0.061,k=0.06264):
 
 ca_readif =NCA(N_CHANNELS,
 			   ACTIVATION="swish",
-			   OBS_CHANNELS=OBS_CHANNELS,
+			   OBS_CHANNELS=2,
 			   REGULARIZER=0.1,
 			   PADDING="periodic",
 			   LAYERS=2,
