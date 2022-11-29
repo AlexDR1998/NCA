@@ -47,13 +47,7 @@ class PDE_solver(object):
 		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
 		
 		print(self.KERNEL.shape)
-		_d = np.zeros((N_BATCHES,size[0],size[1],N_CHANNELS)).astype(np.float32)
-		_d[:,:size[0]//2,:size[1]//2]=1
-		_d = tf.convert_to_tensor(_d)
-		plt.imshow(_d[0,...,0])
-		plt.show()
-		plt.imshow(tf.nn.depthwise_conv2d(_d,self.KERNEL,[1,1,1,1],"VALID")[0,...,1])
-		plt.show()
+
 	
 	@tf.function
 	def calculate_derivatives(self,X,KERNEL):
