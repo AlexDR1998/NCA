@@ -14,10 +14,11 @@ index=int(sys.argv[1])-1
 LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index)
 
 N_CHANNELS = 16
-N_CHANNELS_PDE = 4
+N_CHANNELS_PDE = 8
 N_BATCHES = 4
 OBS_CHANNELS=1
 TRAIN_ITERS = 8000
+multiplier=20 # Compare PDE and NCA every 20 steps - if compared at every step, too much ram is used
 
 emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
@@ -73,8 +74,8 @@ x0[3,4:24,16:24]=0
 x0[3,42:46,40:60]=0
 x0[3,16:24,40:48]=1
 x0[3,40:48,16:24]=1
-trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,200,step_mul=10,model_filename=heat_filename)
-trainer.train_sequence(TRAIN_ITERS,1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
+trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,100,step_mul=multiplier,model_filename=heat_filename)
+trainer.train_sequence(TRAIN_ITERS,multiplier,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
 
 
 
@@ -101,7 +102,7 @@ print(ca_readif)
 
 
 
-x0 = np.ones((N_BATCHES,S,S,2)).astype(np.float32)
+x0 = np.ones((N_BATCHES,64,64,2)).astype(np.float32)
 
 #x0[1,:32]=0
 x0[0,24:40,24:40]=0
@@ -116,5 +117,5 @@ x0[3,16:24,40:48]=0
 x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
-trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,200,step_mul=10,model_filename=readif_filename)
-trainer.train_sequence(TRAIN_ITERS,1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
+trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,100,step_mul=multiplier,model_filename=readif_filename)
+trainer.train_sequence(TRAIN_ITERS,multiplier,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
