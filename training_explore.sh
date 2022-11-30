@@ -4,7 +4,7 @@
 #$ -l h_rt=24:00:00
 
 #$ -pe gpu-titanx 2
-#$ -l h_vmem=30G
+#$ -l h_vmem=32G
 
 
 . /etc/profile.d/modules.sh

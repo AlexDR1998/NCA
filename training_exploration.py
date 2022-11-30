@@ -14,6 +14,7 @@ index=int(sys.argv[1])-1
 LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index)
 
 N_CHANNELS = 16
+N_CHANNELS_PDE = 4
 N_BATCHES = 4
 OBS_CHANNELS=1
 TRAIN_ITERS = 8000
@@ -21,7 +22,7 @@ TRAIN_ITERS = 8000
 emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
-
+"""
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
 
@@ -40,7 +41,7 @@ trainer_emoji.data_noise_augment(0.001)
 trainer_emoji.train_sequence(TRAIN_ITERS,60,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
 
 
-
+"""
 
 
 
@@ -50,7 +51,8 @@ trainer_emoji.train_sequence(TRAIN_ITERS,60,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMI
 def F_heat(X,Xdx,Xdy,Xdd,D=0.33):
 	return D*Xdd
 
-ca_heat =NCA(N_CHANNELS,
+ca_heat =NCA(N_CHANNELS_PDE,
+			 FIRE_RATE=1,
 			 ACTIVATION="swish",
 			 OBS_CHANNELS=OBS_CHANNELS,
 			 REGULARIZER=0.1,
@@ -85,7 +87,8 @@ def F_readif_2(X,Xdx,Xdy,Xdd,D=[0.2,0.05],f=0.061,k=0.06264):
 	ch_2 = D[1]*Xdd[...,1] + X[...,1]**2*X[...,0] - (k+f)*X[...,1]
 	return tf.stack([ch_1,ch_2],-1)
 
-ca_readif =NCA(N_CHANNELS,
+ca_readif =NCA(N_CHANNELS_PDE,
+			   FIRE_RATE=1,
 			   ACTIVATION="swish",
 			   OBS_CHANNELS=2,
 			   REGULARIZER=0.1,
