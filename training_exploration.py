@@ -23,7 +23,7 @@ multiplier=20 # Compare PDE and NCA every 20 steps - if compared at every step, 
 emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
-"""
+
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
 
@@ -37,12 +37,12 @@ print(ca_emoji)
 
 emoji_data = load_emoji_sequence(["alien_monster.png","rooster_1f413.png","rooster_1f413.png"],downsample=2)
 trainer_emoji = NCA_Trainer(ca_emoji,emoji_data,N_BATCHES,model_filename=emoji_filename)
-trainer_emoji.data_pad_augment(2,2)
+trainer_emoji.data_pad_augment(2,10)
 trainer_emoji.data_noise_augment(0.001)
 trainer_emoji.train_sequence(TRAIN_ITERS,60,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
 
 
-"""
+
 
 
 
