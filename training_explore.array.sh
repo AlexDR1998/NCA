@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N training_explore
+#$ -N training_explore_PDE
 #$ -cwd
 #$ -l h_rt=12:00:00
 

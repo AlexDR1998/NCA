@@ -18,7 +18,8 @@ N_CHANNELS_PDE = 8
 N_BATCHES = 4
 OBS_CHANNELS=1
 TRAIN_ITERS = 8000
-multiplier=20 # Compare PDE and NCA every 20 steps - if compared at every step, too much ram is used
+multiplier=10 # Compare PDE and NCA every 1 step - if compared at every step, too much ram is used
+BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 
 emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
 heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
@@ -26,7 +27,7 @@ readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRIN
 
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
-
+"""
 ca_emoji = NCA(N_CHANNELS,
 			   ACTIVATION="swish",
 			   REGULARIZER=0.1,
@@ -40,7 +41,7 @@ trainer_emoji = NCA_Trainer(ca_emoji,emoji_data,N_BATCHES,model_filename=emoji_f
 trainer_emoji.data_pad_augment(2,10)
 trainer_emoji.data_noise_augment(0.001)
 trainer_emoji.train_sequence(TRAIN_ITERS,60,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
-
+"""
 
 
 
@@ -74,7 +75,7 @@ x0[3,4:24,16:24]=0
 x0[3,42:46,40:60]=0
 x0[3,16:24,40:48]=1
 x0[3,40:48,16:24]=1
-trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,100,step_mul=multiplier,model_filename=heat_filename)
+trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,320,step_mul=multiplier,model_filename=heat_filename)
 trainer.train_sequence(TRAIN_ITERS,multiplier,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
 
 
@@ -117,5 +118,5 @@ x0[3,16:24,40:48]=0
 x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
-trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,100,step_mul=multiplier,model_filename=readif_filename)
+trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,320,step_mul=multiplier,model_filename=readif_filename)
 trainer.train_sequence(TRAIN_ITERS,multiplier,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)

@@ -88,7 +88,7 @@ class NCA_Trainer(object):
 		print("Target: "+str(self.target.shape))
 
 	
-	def loss_func(self,x):
+	def loss_func(self,x,x_true=None):
 		"""
 			Loss function for training to minimise. Averages over batches, returns error per time slice (sequence)
 
@@ -96,14 +96,16 @@ class NCA_Trainer(object):
 			----------
 			x : float32 tensor [(T-1)*N_BATCHES,size,size,N_CHANNELS]
 				Current state of NCA grids, in sequence training mode
-			
+			x_true : float32 tensor optional [(T-1)*N_BATCHES,size,size,N_CHANNELS]
+				Target state for NCA grids. Defaults to self.target
 			Returns
 			-------
 			loss : float32 tensor [T]
 				Array of errors at each timestep
 		"""
-
-		eu = tf.math.reduce_euclidean_norm((x[...,:self.OBS_CHANNELS]-self.target),[-2,-3,-1])
+		if x_true is None:
+			x_true = self.target
+		eu = tf.math.reduce_euclidean_norm((x[...,:self.OBS_CHANNELS]-x_true),[-2,-3,-1])
 		# self.N_BATCHES: removes the 'hidden' 12h state
 		return tf.reduce_mean(tf.reshape(eu,(-1,self.N_BATCHES)),-1)
 
@@ -284,7 +286,8 @@ class NCA_Trainer(object):
 			----------
 
 			iter_n : int
-				number of NCA update steps to run ca
+				number of NCA update s
+				teps to run ca
 
 			REG_COEFF : float32 optional
 				Strength of intermediate state regulariser - penalises any pixels outwith [0,1]
@@ -407,10 +410,6 @@ class NCA_Trainer(object):
 			R = np.random.uniform()<UPDATE_RATE
 			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC)#,i%4==0)
 			
-			#---------- I THINK THIS IS WRONG ---------------
-			#print("--- X,X0 shapes---")
-			#print(x.shape)
-			#print(self.x0.shape)
 
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
 			
@@ -1161,6 +1160,187 @@ class NCA_PDE_Trainer(NCA_Trainer):
 					except Exception as e:
 						pass
 
+
+	def train_step(self,x,iter_n,REG_COEFF,update_gradients=True,LOSS_FUNC=None,BATCH_SIZE=64):
+		"""
+			Training step. Runs NCA model once, calculates loss gradients and tweaks model
+
+			Differs from superclass by looping over batches to avoid OOM errors
+			
+			Parameters
+			----------
+			x : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
+				input states
+			iter_n : int
+				number of NCA update steps to run ca
+
+			REG_COEFF : float32 optional
+				Strength of intermediate state regulariser - penalises any pixels outwith [0,1]
+			
+			update_gradients : bool optional
+				Controls whether model weights are updated at this step
+
+			LOSS_FUNC : (float32 tensor [N_BATCHES,X,Y,N_CHANNELS])**2 -> float32 tensor [N_BATCHES] optional
+				Alternative loss function
+			BATCH_SIZE : int optional
+				How many NCA steps to do in parallel in a gradient loop. Too big leads to OOM errors
+
+
+		"""
+		
+		#--- If alternative loss function is provided, use that, otherwise use default
+		if LOSS_FUNC is None:
+			loss_func = self.loss_func
+		else:
+			loss_func = lambda x,x_true: LOSS_FUNC(x[...,:self.OBS_CHANNELS],x_true)
+		
+		
+		x_a = np.array(x)
+		t_a = np.array(self.target)
+		losses_b = []
+		BATCH_IND = np.arange(x.shape[0])
+		np.random.shuffle(BATCH_IND)
+		
+		for b in range(x.shape[0]//BATCH_SIZE):
+			X_b = x_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]]
+			X_b = tf.convert_to_tensor(X_b)
+			T_b = t_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]]
+			T_b = tf.convert_to_tensor(T_b)
+
+			with tf.GradientTape() as g:
+				for i in range(iter_n):
+					X_b = self.NCA_model(X_b)
+					if self.NCA_model.ADHESION_MASK is not None:
+						X_b = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*X_b
+					
+					
+				#print(x.shape)
+				losses = loss_func(X_b,T_b) 
+				mean_loss = tf.reduce_mean(losses)
+				
+			losses_b.append(losses)
+			
+
+			if update_gradients:
+				grads = g.gradient(mean_loss,self.NCA_model.dense_model.weights)
+				grads = [g/(tf.norm(g)+1e-8) for g in grads]
+				self.trainer.apply_gradients(zip(grads, self.NCA_model.dense_model.weights))
+			x_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]] = X_b
+			
+		
+		losses = tf.concat(losses_b,axis=0)
+		mean_loss = tf.reduce_mean(losses)
+		return x_a, mean_loss,losses
+
+
+	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=2e-3,OPTIMIZER="Adagrad",BATCH_SIZE=64):
+		"""
+			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
+			
+			Parameters
+			----------
+			
+			TRAIN_ITERS : int
+				how many iterations of training
+			iter_n : int
+				number of NCA update steps to run ca
+
+			UPDATE_RATE: float32 optional
+				Controls stochasticity of applying gradient updates, potentially useful for breaking dominance of short time effects
+
+			REG_COEFF : float32 optional
+				Strength of intermediate state regulariser - penalises any pixels outwith [0,1]
+			
+			LOSS_FUNC : (float32 tensor [N_BATCHES,X,Y,N_CHANNELS])**2 -> float32 tensor [N_BATCHES] optional
+				Alternative loss function
+
+			LEARN_RATE : float32 optional
+				Learning rate for optimisation algorithm
+
+			OPTIMIZER : string optional {"Adagrad","Adam","Adadelta","Nadam","RMSprop"}
+				Select which tensorflow.keras.optimizers method to use
+			BATCH_SIZE : int optional
+				How many NCA steps to do in parallel in a gradient loop. Too big leads to OOM errors
+			
+			Returns
+			-------
+			None
+		"""
+		
+		#--- Setup training algorithm
+
+		lr = LEARN_RATE
+		#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
+		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.99)
+		if OPTIMIZER=="Adagrad":
+			self.trainer = tf.keras.optimizers.Adagrad(lr_sched)
+		elif OPTIMIZER=="Adam":
+			self.trainer = tf.keras.optimizers.Adam(lr_sched)
+		elif OPTIMIZER=="Adadelta":
+			self.trainer = tf.keras.optimizers.Adadelta()#(lr_sched)
+		elif OPTIMIZER=="Nadam":
+			self.trainer = tf.keras.optimizers.Nadam()#lr_sched)
+		elif OPTIMIZER=="RMSprop":
+			self.trainer = tf.keras.optimizers.RMSprop(lr_sched)
+		else:
+			print('No optimizer selected. Please select one of: {"Adagrad","Adam","Adadelta","Nadam","RMSprop"}')
+			return None
+		
+		
+		#--- Setup adhesion and decay masks
+
+		if self.NCA_model.ADHESION_MASK is not None:
+			_mask = np.zeros((self.x0.shape),dtype="float32")
+			_mask[...,self.OBS_CHANNELS]=1
+			print(_mask.shape)
+			print(self.NCA_model.ADHESION_MASK.shape)
+
+		
+
+
+	
+		
+		#--- Do training loop
+		
+		best_mean_loss = 100000
+		N_BATCHES = self.N_BATCHES
+		print(N_BATCHES)
+		print(self.x0.shape)
+		print(self.x0_true.shape)
+		for i in tqdm(range(TRAIN_ITERS)):
+			R = np.random.uniform()<UPDATE_RATE
+			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC,BATCH_SIZE=BATCH_SIZE)#,i%4==0)
+			
+
+			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
+			
+
+			if N_BATCHES>1:
+				self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
+			
+
+
+			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
+			if (mean_loss<best_mean_loss) and (i>TRAIN_ITERS//10):
+				if self.model_filename is not None:
+					self.NCA_model.save_wrapper(self.model_filename)
+					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
+				
+				self.BEST_TRAJECTORY = self.NCA_model.run(self.x0,iter_n*self.T*2,N_BATCHES=self.N_BATCHES).numpy()
+				best_mean_loss = mean_loss
+
+			loss = np.hstack((mean_loss,losses))
+			
+			
+			#--- Write to log
+			self.tb_training_loop_log_sequence(loss,x,i)
+		print("-------- Training complete ---------")
+		#--- Write resulting best animation to tensorboard			
+		self.tb_write_result(iter_n)
+
+		#--- If a filename is provided, save the trained NCA model.
+		#if model_filename is not None:
+		#	ca.save_wrapper(model_filename)
 	
 	'''
 	def tb_write_result(self,iter_n):
