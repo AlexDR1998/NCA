@@ -24,7 +24,8 @@ class NCA(tf.keras.Model):
 			     OBS_CHANNELS=4,
 			     REGULARIZER=0.01,
 			     PADDING="zero",
-			     KERNEL_TYPE="ID_LAP"):
+			     KERNEL_TYPE="ID_LAP",
+			     ORDER=1):
 		"""
 			Initialiser for neural cellular automata object
 
@@ -52,6 +53,11 @@ class NCA(tf.keras.Model):
 				 "ID_LAP_AV","ID_DIFF_AV","ID_DIFF_LAP",			- Identity and 2 others
 				 "ID_DIFF_LAP_AV",									- Identity and all 3 others
 				 "DIFF_LAP_AV","DIFF_AV","LAP_AV"					- Average and other non-identity
+			ORDER : int optional
+				Highest order polynomial terms of channels.
+				1 - only linear channels, no cross terms
+				2 - up to squared cross terms
+				3 - not yet implemented
 		"""
 
 		if OBS_CHANNELS>N_CHANNELS:
@@ -66,6 +72,7 @@ class NCA(tf.keras.Model):
 		self.ACTIVATION = ACTIVATION
 		self.PADDING = PADDING
 		self.KERNEL_TYPE=KERNEL_TYPE
+		self.ORDER = ORDER
 
 
 		if ADHESION_MASK is not None:
@@ -113,7 +120,6 @@ class NCA(tf.keras.Model):
 									   trainable=True)])
 		
 
-
 		#--- Prepare convolution kernels
 		_i = np.array([0,1,0],dtype=np.float32)
 		I  = np.outer(_i,_i)
@@ -148,7 +154,14 @@ class NCA(tf.keras.Model):
 		if self.KERNEL_TYPE=="DIFF_AV":
 			kernel = tf.stack([dx,dy,av],-1)[:,:,None,:]
 
-		self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
+		#--- If including 2nd order channels (squares and cross multiplication), 
+		#    expand KERNEL appropriately
+
+		if self.ORDER==1:
+			self.KERNEL = tf.repeat(kernel,self.N_CHANNELS,2)
+		elif self.ORDER==2:
+			self.tri_ind = tf.convert_to_tensor(np.array(np.triu_indices(self.N_CHANNELS)).T)
+			self.KERNEL = tf.repeat(kernel,self.N_CHANNELS + (self.N_CHANNELS*(self.N_CHANNELS+1))//2,2)
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
 		print(self.dense_model.summary())
 		
@@ -222,8 +235,13 @@ class NCA(tf.keras.Model):
 				perception field, where each coordinate [batch,size,size] is a vector encoding
 				local structure of x at [batch,size,size]. Used as input to self.dense_model
 		"""
-
-		y = tf.nn.depthwise_conv2d(x,self.KERNEL,[1,1,1,1],"SAME")
+		if self.ORDER==1:
+			y = tf.nn.depthwise_conv2d(x,self.KERNEL,[1,1,1,1],"SAME")
+		elif self.ORDER==2:
+			x_sq = tf.einsum('bxyi,bxyj->ijbxy',x,x)
+			x_sq_flat = tf.transpose(tf.gather_nd(params=x_sq,indices=self.tri_ind),[1,2,3,0])
+			x_2 = tf.concat([x,x_sq_flat],axis=-1)
+			y = tf.nn.depthwise_conv2d(x_2,self.KERNEL,[1,1,1,1],"SAME")
 		
 		return y
 	
@@ -468,7 +486,8 @@ class NCA(tf.keras.Model):
 		return {"N_CHANNELS":self.N_CHANNELS,
 				"FIRE_RATE": self.FIRE_RATE,
 				"LAYERS":self.N_layers,
-				"KERNEL_TYPE":self.KERNEL_TYPE}
+				"KERNEL_TYPE":self.KERNEL_TYPE,
+				"ORDER":self.ORDER}
 				#"ADHESION_MASK":self.ADHESION_MASK,
 				#"dense_model":self.dense_model}
 	

@@ -11,9 +11,11 @@ import sys
 
 
 index=int(sys.argv[1])-1
-LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index)
+order = 1 + index%2
+LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index//2)
 
-N_CHANNELS = 16
+
+N_CHANNELS = 8
 N_CHANNELS_PDE = 8
 N_BATCHES = 4
 OBS_CHANNELS=1
@@ -22,18 +24,19 @@ multiplier_heat=1 # Compare PDE and NCA every 1 step - if compared at every step
 multiplier_rdif=4
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 
-emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
-heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
-readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING
+emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
+heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
+readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
 
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
-"""
+
 ca_emoji = NCA(N_CHANNELS,
 			   ACTIVATION="swish",
 			   REGULARIZER=0.1,
 			   LAYERS=2,
-			   KERNEL_TYPE="ID_LAP")
+			   KERNEL_TYPE="ID_LAP",
+			   ORDER=order)
 
 print(ca_emoji)
 
@@ -42,7 +45,7 @@ trainer_emoji = NCA_Trainer(ca_emoji,emoji_data,N_BATCHES,model_filename=emoji_f
 trainer_emoji.data_pad_augment(2,10)
 trainer_emoji.data_noise_augment(0.001)
 trainer_emoji.train_sequence(TRAIN_ITERS,60,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
-"""
+
 
 
 
@@ -61,7 +64,8 @@ ca_heat =NCA(N_CHANNELS_PDE,
 			 REGULARIZER=0.1,
 			 PADDING="periodic",
 			 LAYERS=2,
-			 KERNEL_TYPE="ID_LAP")
+			 KERNEL_TYPE="ID_LAP",
+			 ORDER=order)
 
 print(ca_heat)
 
@@ -77,7 +81,7 @@ x0[3,42:46,40:60]=0
 x0[3,16:24,40:48]=1
 x0[3,40:48,16:24]=1
 trainer = NCA_PDE_Trainer(ca_heat,x0,F_heat,N_BATCHES,320,step_mul=multiplier_heat,model_filename=heat_filename)
-trainer.train_sequence(TRAIN_ITERS,multiplier,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
+trainer.train_sequence(TRAIN_ITERS,multiplier_heat,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
 
 
 
@@ -97,7 +101,8 @@ ca_readif =NCA(N_CHANNELS_PDE,
 			   REGULARIZER=0.1,
 			   PADDING="periodic",
 			   LAYERS=2,
-			   KERNEL_TYPE="ID_LAP")
+			   KERNEL_TYPE="ID_LAP",
+			   ORDER=order)
 
 print(ca_readif)
 
@@ -120,4 +125,4 @@ x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
 trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,320,step_mul=multiplier_rdif,model_filename=readif_filename)
-trainer.train_sequence(TRAIN_ITERS,multiplier,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
+trainer.train_sequence(TRAIN_ITERS,multiplier_rdif,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER)
