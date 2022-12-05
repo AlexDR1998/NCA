@@ -6,7 +6,7 @@ from tqdm import tqdm
 import datetime
 from PDE_solver import PDE_solver
 from NCA_train_utils import *
-
+from time import time
 
 
 
@@ -1159,7 +1159,23 @@ class NCA_PDE_Trainer(NCA_Trainer):
 						tf.summary.histogram('Layer '+str(n)+' biases',model_params[1],step=i)
 					except Exception as e:
 						pass
-
+				weight_matrix_image = []
+				for n in range(self.NCA_model.N_layers):
+					model_params = self.NCA_model.dense_model.layers[n].get_weights()
+					tf.summary.histogram('Layer '+str(n)+' weights',model_params[0],step=i)
+					
+					figure = plt.figure(figsize=(5,5))
+					plt.imshow(model_params[0][0,0])
+					if n==0:
+						plt.ylabel(r"N_CHANNELS$\star$ KERNELS")
+					else:
+						plt.ylabel("Input from previous layer")
+					if n==self.NCA_model.N_layers-1:
+						plt.xlabel("NCA state increments")
+					else:
+						plt.xlabel("Output")
+					weight_matrix_image.append(plot_to_image(figure))
+				tf.summary.image("Weight matrices",np.array(weight_matrix_image)[:,0],step=i)
 
 	def train_step(self,x,iter_n,REG_COEFF,update_gradients=True,LOSS_FUNC=None,BATCH_SIZE=64):
 		"""
@@ -1307,8 +1323,9 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		print(N_BATCHES)
 		print(self.x0.shape)
 		print(self.x0_true.shape)
+		start_time = time()
 		for i in tqdm(range(TRAIN_ITERS)):
-			R = np.random.uniform()<UPDATE_RATE
+			R = np.random.uniform()<=UPDATE_RATE
 			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC,BATCH_SIZE=BATCH_SIZE)#,i%4==0)
 			
 
@@ -1335,6 +1352,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			#--- Write to log
 			self.tb_training_loop_log_sequence(loss,x,i)
 		print("-------- Training complete ---------")
+		print("Time taken (seconds): "+str(time()-start_time))
 		#--- Write resulting best animation to tensorboard			
 		self.tb_write_result(iter_n)
 
