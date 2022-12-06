@@ -251,7 +251,12 @@ class NCA_Trainer(object):
 		"""
 
 		with self.train_summary_writer.as_default():
-			grids = self.BEST_TRAJECTORY
+			try:
+				grids = self.BEST_TRAJECTORY
+			except:
+				self.BEST_TRAJECTORY = self.NCA_model.run(self.x0,iter_n*self.T*2,N_BATCHES=self.N_BATCHES).numpy()
+				grids = self.BEST_TRAJECTORY
+				print("-------Warning - Loss function was not reduced, displaying last model instead----------")
 			grids[...,self.OBS_CHANNELS:] = (1+np.tanh(grids[...,self.OBS_CHANNELS:]))/2.0
 			for i in range(iter_n*self.T*2):
 				if self.RGB_mode=="RGB":
