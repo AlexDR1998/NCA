@@ -198,6 +198,39 @@ def loss_bhattacharyya(X,Y):
 
 	return tf.math.reduce_mean(B_loss,axis=-1) 
 
+
+def loss_bhattacharyya_modified(X,Y):
+	"""
+		Implementation of bhattarcharyya distance of X and Y. Modified to account for 
+		difference in average amplitude of X and Y
+		
+		As described in: https://en.wikipedia.org/wiki/Bhattacharyya_distance
+		
+		Note that this assumes X and Y are probability distributions -> normalise them
+		
+		Parameters
+		----------
+		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+	"""
+	eps = 1e-9
+	X_amp = tf.math.reduce_mean(X,axis=[1,2])
+	Y_amp = tf.math.reduce_mean(Y,axis=[1,2])
+	X = tf.math.abs(X)
+	Y = tf.math.abs(Y)
+	X_norm = tf.math.divide(X+eps,tf.math.reduce_sum(X+eps,axis=[1,2],keepdims=True))
+	Y_norm = tf.math.divide(Y+eps,tf.math.reduce_sum(Y+eps,axis=[1,2],keepdims=True))
+	BC = tf.math.reduce_sum(tf.math.sqrt(X_norm*Y_norm),axis=[1,2])
+	B_loss = -tf.math.log(BC)*(1+tf.math.abs(X_amp-Y_amp))
+
+	return tf.math.reduce_mean(B_loss,axis=-1) 
+
+
 def loss_hellinger(X,Y):
 	"""
 		Implementation of hellinger distance of X and Y
@@ -226,6 +259,35 @@ def loss_hellinger(X,Y):
 	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])
 	return tf.math.reduce_mean(H_bc,axis=-1)
 
+def loss_hellinger_modified(X,Y):
+	"""
+		Implementation of hellinger distance of X and Y
+		
+		As described in: https://en.wikipedia.org/wiki/Hellinger_distance
+		
+		Note that this assumes X and Y are probability distributions -> normalise them
+		
+		Parameters
+		----------
+		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+	"""
+	eps=1e-9
+	X_amp = tf.math.reduce_mean(X,axis=[1,2])
+	Y_amp = tf.math.reduce_mean(Y,axis=[1,2])
+	X = tf.math.abs(X)
+	Y = tf.math.abs(Y)
+	X_norm = tf.math.divide(X+eps,tf.math.reduce_sum(X+eps,axis=[1,2],keepdims=True))
+	Y_norm = tf.math.divide(Y+eps,tf.math.reduce_sum(Y+eps,axis=[1,2],keepdims=True))
+	sqrt_diff = tf.math.sqrt(X_norm) - tf.math.sqrt(Y_norm)
+	
+	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])*(1+tf.math.abs(X_amp-Y_amp))
+
 
 def plot_to_image(figure):
 	"""Converts the matplotlib plot specified by 'figure' to a PNG image and
@@ -253,8 +315,8 @@ def index_to_trainer_parameters(index):
 				  loss_sliced_wasserstein_grid,
 				  loss_sliced_wasserstein_rotate,
 				  loss_spectral,
-				  loss_bhattacharyya,
-				  loss_hellinger,
+				  loss_bhattacharyya_modified,
+				  loss_hellinger_modified,
 				  None]
 	loss_func_name =["sliced_wasserstein_channels",
 					 "sliced_wasserstein_grid",

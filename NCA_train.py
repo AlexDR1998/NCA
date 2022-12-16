@@ -1182,7 +1182,14 @@ class NCA_PDE_Trainer(NCA_Trainer):
 					weight_matrix_image.append(plot_to_image(figure))
 				tf.summary.image("Weight matrices",np.array(weight_matrix_image)[:,0],step=i)
 
-	def train_step(self,x,iter_n,REG_COEFF,update_gradients=True,LOSS_FUNC=None,BATCH_SIZE=64):
+	def train_step(self,
+				   x,
+				   iter_n,
+				   REG_COEFF,
+				   update_gradients=True,
+				   LOSS_FUNC=None,
+				   BATCH_SIZE=64,
+				   TRAIN_MODE="full"):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks model
 
@@ -1218,25 +1225,37 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		
 		x_a = np.array(x)
 		t_a = np.array(self.target)
+
+		#if TRAIN_MODE=="differential":
+		#	print("======== Debug ========")
+		#	print(t_a.shape)
+			#print(np.diff(t_a,axis=-1).shape)
+
 		losses_b = []
 		BATCH_IND = np.arange(x.shape[0])
 		np.random.shuffle(BATCH_IND)
 		
 		for b in range(x.shape[0]//BATCH_SIZE):
+			#--- Slice randomly shuffled subsets of x
+
 			X_b = x_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]]
 			X_b = tf.convert_to_tensor(X_b)
 			T_b = t_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]]
 			T_b = tf.convert_to_tensor(T_b)
 
 			with tf.GradientTape() as g:
+				X_original = tf.identity(X_b)
 				for i in range(iter_n):
 					X_b = self.NCA_model(X_b)
+					
 					if self.NCA_model.ADHESION_MASK is not None:
 						X_b = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*X_b
 					
-					
-				#print(x.shape)
-				losses = loss_func(X_b,T_b) 
+				if TRAIN_MODE=="differential":
+					losses = loss_func((X_b-X_original),T_b)	
+				elif TRAIN_MODE=="full":
+					losses = loss_func(X_b,T_b) 
+
 				mean_loss = tf.reduce_mean(losses)
 				
 			losses_b.append(losses)
@@ -1254,7 +1273,16 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		return x_a, mean_loss,losses
 
 
-	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=2e-3,OPTIMIZER="Adagrad",BATCH_SIZE=64):
+	def train_sequence(self,
+					   TRAIN_ITERS,
+					   iter_n,
+					   UPDATE_RATE=1,
+					   REG_COEFF=0,
+					   LOSS_FUNC=None,
+					   LEARN_RATE=2e-3,
+					   OPTIMIZER="Adagrad",
+					   BATCH_SIZE=64,
+					   TRAIN_MODE="full"):
 		"""
 			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 			
@@ -1282,11 +1310,15 @@ class NCA_PDE_Trainer(NCA_Trainer):
 				Select which tensorflow.keras.optimizers method to use
 			BATCH_SIZE : int optional
 				How many NCA steps to do in parallel in a gradient loop. Too big leads to OOM errors
-			
+			TRAIN_MODE : string optional {"full","differential"}
+				full : fit resultant NCA grid to PDE state
+				differential: fit differential update of NCA and PDE
+
 			Returns
 			-------
 			None
 		"""
+		
 		
 		#--- Setup training algorithm
 
@@ -1306,7 +1338,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		else:
 			print('No optimizer selected. Please select one of: {"Adagrad","Adam","Adadelta","Nadam","RMSprop"}')
 			return None
-		
+		if TRAIN_MODE not in ["full","differential"]:
+			print("TRAIN_MODE should be 'full' or 'differential' ")
 		
 		#--- Setup adhesion and decay masks
 
@@ -1317,10 +1350,36 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			print(self.NCA_model.ADHESION_MASK.shape)
 
 		
+		#--- If using differential training
+		if TRAIN_MODE=="differential":
+			print(self.target.shape)
+			target = self.target.reshape((self.T-1,
+										  self.N_BATCHES,
+										  self.target.shape[1],
+										  self.target.shape[2],
+										  self.OBS_CHANNELS))
+			target_diff = np.diff(target,axis=0)
+			print(target_diff.shape)
+			self.target = target_diff.reshape(((self.T-2)*self.N_BATCHES,
+											  self.target.shape[1],
+											  self.target.shape[2],
+											  self.OBS_CHANNELS))
 
-
-	
-		
+			
+			x0 = self.x0
+			x0 = x0.reshape((self.T-1),
+							self.N_BATCHES,
+							self.target.shape[1],
+							self.target.shape[2],
+							self.N_CHANNELS)
+			
+			x0 = x0[:-1]
+			self.x0 = x0.reshape((self.T-2)*self.N_BATCHES,
+								 self.target.shape[1],
+								 self.target.shape[2],
+								 self.N_CHANNELS)
+			self.x0_true = self.x0
+			
 		#--- Do training loop
 		
 		best_mean_loss = 100000
@@ -1331,7 +1390,13 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		start_time = time()
 		for i in tqdm(range(TRAIN_ITERS)):
 			R = np.random.uniform()<=UPDATE_RATE
-			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC,BATCH_SIZE=BATCH_SIZE)#,i%4==0)
+			x,mean_loss,losses = self.train_step(self.x0,
+												 iter_n,
+												 REG_COEFF,
+												 update_gradients=R,
+												 LOSS_FUNC=LOSS_FUNC,
+												 BATCH_SIZE=BATCH_SIZE,
+												 TRAIN_MODE=TRAIN_MODE)#,i%4==0)
 			
 
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps

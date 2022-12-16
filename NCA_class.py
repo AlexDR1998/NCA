@@ -11,7 +11,6 @@ class NCA(tf.keras.Model):
 		Heavily inspired by work at https://distill.pub/2020/growing-ca/ 
 		modified and extended for purpose of modelling stem cell differentiation experiments
 
-		Don't use this directly, instead use one of the subclasses with specified neural net architecture
 	
 	"""
 
@@ -19,12 +18,12 @@ class NCA(tf.keras.Model):
 	def __init__(self,N_CHANNELS,
 			     FIRE_RATE=0.5,
 			     ADHESION_MASK=None,
-			     ACTIVATION="relu",
+			     ACTIVATION="swish",
 			     LAYERS=3,
 			     OBS_CHANNELS=4,
 			     REGULARIZER=0.01,
 			     PADDING="zero",
-			     KERNEL_TYPE="ID_LAP",
+			     KERNEL_TYPE="ID_LAP_AV",
 			     ORDER=1):
 		"""
 			Initialiser for neural cellular automata object
@@ -167,7 +166,7 @@ class NCA(tf.keras.Model):
 		
 	def upscale_kernel(self):
 		"""
-			Replaces kernels with higher resolution versions
+			Replaces kernels with higher resolution versions - DOESN'T WORK WELL
 		"""
 		#_i = np.array([0,0,1,0,0],dtype=np.float32)
 		#I  = np.outer(_i,_i)
@@ -487,7 +486,8 @@ class NCA(tf.keras.Model):
 				"FIRE_RATE": self.FIRE_RATE,
 				"LAYERS":self.N_layers,
 				"KERNEL_TYPE":self.KERNEL_TYPE,
-				"ORDER":self.ORDER}
+				"ORDER":self.ORDER,
+				"ACTIVATION":self.ACTIVATION}
 				#"ADHESION_MASK":self.ADHESION_MASK,
 				#"dense_model":self.dense_model}
 	
