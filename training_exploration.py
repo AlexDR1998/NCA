@@ -25,8 +25,8 @@ multiplier_rdif=1
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 
 #emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
-heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
-#readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
+#heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
+readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
 
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
