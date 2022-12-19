@@ -19,7 +19,7 @@ N_CHANNELS = 8
 N_CHANNELS_PDE = 8
 N_BATCHES = 4
 OBS_CHANNELS=1
-TRAIN_ITERS = 8000
+TRAIN_ITERS = 4000
 multiplier_heat=1 # Compare PDE and NCA every 1 step - if compared at every step, too much ram is used
 multiplier_rdif=1
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
@@ -125,4 +125,4 @@ x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
 trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,644,step_mul=multiplier_rdif,model_filename=readif_filename)
-trainer.train_sequence(TRAIN_ITERS,multiplier_rdif,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,mode="differential")
+trainer.train_sequence(TRAIN_ITERS,multiplier_rdif,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,TRAIN_MODE="differential")
