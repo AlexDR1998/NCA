@@ -15,10 +15,10 @@ order = 1 + index%2
 LOSS_FUNC,OPTIMIZER,LOSS_FUNC_STRING = index_to_trainer_parameters(index//2)
 
 
-N_CHANNELS = 8
-N_CHANNELS_PDE = 8
+N_CHANNELS = 4
+N_CHANNELS_PDE = 4
 N_BATCHES = 4
-OBS_CHANNELS=1
+OBS_CHANNELS=2
 TRAIN_ITERS = 4000
 multiplier_heat=1 # Compare PDE and NCA every 1 step - if compared at every step, too much ram is used
 multiplier_rdif=1
@@ -26,7 +26,7 @@ BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across 
 
 #emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
 #heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
-readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
+readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)+"_v2"
 
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
@@ -125,4 +125,4 @@ x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
 trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,644,step_mul=multiplier_rdif,model_filename=readif_filename)
-trainer.train_sequence(TRAIN_ITERS,multiplier_rdif,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,TRAIN_MODE="differential")
+trainer.train_sequence(TRAIN_ITERS,multiplier_rdif,REG_COEFF=1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,TRAIN_MODE="differential")

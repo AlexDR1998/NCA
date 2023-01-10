@@ -283,7 +283,7 @@ class NCA_Trainer(object):
 					tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
 									 hidden_channels,step=i,max_outputs=(self.N_CHANNELS-1)//3-1)
 
-	def train_step(self,x,iter_n,REG_COEFF,update_gradients=True,LOSS_FUNC=None):
+	def train_step(self,x,iter_n,REG_COEFF=0,update_gradients=True,LOSS_FUNC=None,NORM_GRADS=True):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks model
 			
@@ -302,7 +302,9 @@ class NCA_Trainer(object):
 
 			LOSS_FUNC : (float32 tensor [N_BATCHES,X,Y,N_CHANNELS])**2 -> float32 tensor [N_BATCHES] optional
 				Alternative loss function
-
+			
+			NORM_GRADS : bool optional
+				Choose whether to normalise gradient updates
 
 
 		"""
@@ -323,9 +325,10 @@ class NCA_Trainer(object):
 					x = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*x
 				
 				#--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
-				above_1 = tf.math.maximum(tf.reduce_max(x),1) - 1
-				below_0 = tf.math.maximum(tf.reduce_max(-x),0)
-				reg_log.append(tf.math.maximum(above_1,below_0))
+				#above_1 = tf.math.maximum(tf.reduce_max(x),1) - 1
+				#below_0 = tf.math.maximum(tf.reduce_max(-x),0)
+				#reg_log.append(tf.math.maximum(above_1,below_0))
+				reg_log.append(tf.reduce_sum(tf.nn.relu(-x)+tf.nn.relu(x-1)))
 				
 			#print(x.shape)
 			losses = loss_func(x) 
@@ -334,11 +337,12 @@ class NCA_Trainer(object):
 					
 		if update_gradients:
 			grads = g.gradient(mean_loss,self.NCA_model.dense_model.weights)
-			grads = [g/(tf.norm(g)+1e-8) for g in grads]
+			if NORM_GRADS:
+				grads = [g/(tf.norm(g)+1e-8) for g in grads]
 			self.trainer.apply_gradients(zip(grads, self.NCA_model.dense_model.weights))
 		return x, mean_loss,losses
 
-	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=2e-3,OPTIMIZER="Adagrad"):
+	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=2e-3,OPTIMIZER="Adagrad",NORM_GRADS=True):
 		"""
 			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 			
@@ -413,7 +417,7 @@ class NCA_Trainer(object):
 		print(self.x0_true.shape)
 		for i in tqdm(range(TRAIN_ITERS)):
 			R = np.random.uniform()<UPDATE_RATE
-			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC)#,i%4==0)
+			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC,NORM_GRADS=NORM_GRADS)#,i%4==0)
 			
 
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
@@ -1185,11 +1189,12 @@ class NCA_PDE_Trainer(NCA_Trainer):
 	def train_step(self,
 				   x,
 				   iter_n,
-				   REG_COEFF,
+				   REG_COEFF=0,
 				   update_gradients=True,
 				   LOSS_FUNC=None,
 				   BATCH_SIZE=64,
-				   TRAIN_MODE="full"):
+				   TRAIN_MODE="full",
+				   NORM_GRADS=True):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks model
 
@@ -1244,10 +1249,11 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			T_b = tf.convert_to_tensor(T_b)
 
 			with tf.GradientTape() as g:
+				reg_log = []
 				X_original = tf.identity(X_b)
 				for i in range(iter_n):
 					X_b = self.NCA_model(X_b)
-					
+					reg_log.append(tf.reduce_sum(tf.nn.relu(-X_b)+tf.nn.relu(X_b-1)))
 					if self.NCA_model.ADHESION_MASK is not None:
 						X_b = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*X_b
 					
@@ -1256,14 +1262,16 @@ class NCA_PDE_Trainer(NCA_Trainer):
 				elif TRAIN_MODE=="full":
 					losses = loss_func(X_b,T_b) 
 
-				mean_loss = tf.reduce_mean(losses)
+				reg_loss = tf.cast(tf.reduce_mean(reg_log),tf.float32)
+				mean_loss = tf.reduce_mean(losses) + REG_COEFF*reg_loss
 				
 			losses_b.append(losses)
 			
 
 			if update_gradients:
 				grads = g.gradient(mean_loss,self.NCA_model.dense_model.weights)
-				grads = [g/(tf.norm(g)+1e-8) for g in grads]
+				if NORM_GRADS:
+					grads = [g/(tf.norm(g)+1e-8) for g in grads]
 				self.trainer.apply_gradients(zip(grads, self.NCA_model.dense_model.weights))
 			x_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]] = X_b
 			
@@ -1282,7 +1290,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 					   LEARN_RATE=2e-3,
 					   OPTIMIZER="Adagrad",
 					   BATCH_SIZE=64,
-					   TRAIN_MODE="full"):
+					   TRAIN_MODE="full",
+					   NORM_GRADS=True):
 		"""
 			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 			
@@ -1396,7 +1405,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 												 update_gradients=R,
 												 LOSS_FUNC=LOSS_FUNC,
 												 BATCH_SIZE=BATCH_SIZE,
-												 TRAIN_MODE=TRAIN_MODE)#,i%4==0)
+												 TRAIN_MODE=TRAIN_MODE,
+												 NORM_GRADS=NORM_GRADS)#,i%4==0)
 			
 
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
