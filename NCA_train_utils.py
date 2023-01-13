@@ -310,7 +310,7 @@ def plot_to_image(figure):
 def index_to_trainer_parameters(index):
 	"""
 		Takes job array index from 1-35 and constructs pair of loss function and optimiser
-	"""
+	
 	loss_funcs = [loss_sliced_wasserstein_channels,
 				  loss_sliced_wasserstein_grid,
 				  loss_sliced_wasserstein_rotate,
@@ -331,7 +331,24 @@ def index_to_trainer_parameters(index):
 				  "Adadelta",
 				  "Nadam",
 				  "RMSprop"]
+	"""
+	loss_funcs = [loss_sliced_wasserstein_channels,
+				  loss_sliced_wasserstein_grid,
+				  loss_sliced_wasserstein_rotate,
+				  loss_spectral,
+				  loss_bhattacharyya_modified,
+				  None]
+	loss_func_name =["sliced_wasserstein_channels",
+					 "sliced_wasserstein_grid",
+					 "sliced_wasserstein_rotate",
+					 "spectral",
+					 "bhattachryya",
+					 "euclidean"]
 
+	optimisers = ["Adagrad",
+				  "Adam",
+				  "Adadelta",
+				  "Nadam"]
 	L = len(loss_funcs)
 	
 	opt = optimisers[index//L]

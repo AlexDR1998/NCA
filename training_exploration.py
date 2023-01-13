@@ -20,13 +20,14 @@ N_CHANNELS_PDE = 4
 N_BATCHES = 4
 OBS_CHANNELS=2
 TRAIN_ITERS = 4000
+LEARN_RATE = 2e-2
 multiplier_heat=1 # How many PDE timesteps per NCA timestep - useful if PDE is slow
 multiplier_rdif=8
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.01
 #emoji_filename ="training_exploration/emoji_alien_monster_rooster_stable_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
 #heat_filename = "training_exploration/PDE_heat_eq_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)
-readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)+"_v3"
+readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_order_"+str(order)+"_v4"
 
 
 #--- Emoji morph alien->rooster stable ------------------------------------------------------------------------
@@ -129,4 +130,10 @@ x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
 trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,324,step_mul=multiplier_rdif,model_filename=readif_filename)
-trainer.train_sequence(TRAIN_ITERS,multiplier_rdif,REG_COEFF=1,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,TRAIN_MODE="differential")
+trainer.train_sequence(TRAIN_ITERS,
+					   multiplier_rdif,
+					   REG_COEFF=1,
+					   LOSS_FUNC=LOSS_FUNC,
+					   LEARN_RATE=LEARN_RATE,
+					   OPTIMIZER=OPTIMIZER,
+					   TRAIN_MODE="differential")

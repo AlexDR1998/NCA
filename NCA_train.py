@@ -1287,7 +1287,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 					   UPDATE_RATE=1,
 					   REG_COEFF=0,
 					   LOSS_FUNC=None,
-					   LEARN_RATE=2e-3,
+					   LEARN_RATE=2e-2,
 					   OPTIMIZER="Adagrad",
 					   BATCH_SIZE=64,
 					   TRAIN_MODE="full",
@@ -1333,7 +1333,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 
 		lr = LEARN_RATE
 		#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
-		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.99)
+		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
 		if OPTIMIZER=="Adagrad":
 			self.trainer = tf.keras.optimizers.Adagrad(lr_sched)
 		elif OPTIMIZER=="Adam":
