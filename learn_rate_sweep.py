@@ -14,6 +14,7 @@ index=int(sys.argv[1])-1
 
 LEARN_RATE,LEARN_RATE_STRING,OPTIMIZER,TRAIN_MODE,NORM_GRADS = index_to_learnrate_parameters(index)
 
+order=1
 N_CHANNELS = 4
 N_CHANNELS_PDE = 4
 N_BATCHES = 4
