@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N training_explore_PDE
+#$ -N rdiff_lr_sweep
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd

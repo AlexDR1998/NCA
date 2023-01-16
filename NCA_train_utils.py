@@ -356,7 +356,30 @@ def index_to_trainer_parameters(index):
 	loss_name = loss_func_name[index%L]
 	return loss,opt,loss_name
 
+def index_to_learnrate_parameters(index):
+	"""
+		Takes job array index from 1-35 and constructs pair of loss function and optimiser
 
+	"""
+	learn_rates = np.logspace(1,-5,7)
+	learn_rates_name = ["1e1","1e0","1e-1","1e-2","1e-3","1e-4","1e-5"]
+	optimisers = ["Adagrad",
+				  "Adam",
+				  "Nadam"]
+	training_modes = ["differential","full"]
+	grad_norm = [True,False]
+	L1 = len(learn_rates)
+	L2 = len(optimisers)
+	L3 = len(training_modes)
+	L4 = len(grad_norm)
+
+	indices = np.unravel_index(index,(L1,L2,L3,L4))
+	lr= learn_rates[indices[0]]
+	lr_name = learn_rates_name[indices[0]]
+	opt = optimisers[indices[1]]
+	mode = training_modes[indices[2]]
+	grad = grad_norm[indices[3]]
+	return lr,lr_name,opt,mode,grad
 """
 X = np.random.uniform(size=(5,128,128,7))
 #Y = np.random.uniform(size=(5,128,128,7))
