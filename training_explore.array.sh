@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N rdiff_lr_sweep
+#$ -N rdiff_nadam_sweep
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
