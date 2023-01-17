@@ -1341,7 +1341,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		elif OPTIMIZER=="Adadelta":
 			self.trainer = tf.keras.optimizers.Adadelta()#(lr_sched)
 		elif OPTIMIZER=="Nadam":
-			self.trainer = tf.keras.optimizers.Nadam()#lr_sched)
+			self.trainer = tf.keras.optimizers.Nadam(LEARN_RATE)#lr_sched)
 		elif OPTIMIZER=="RMSprop":
 			self.trainer = tf.keras.optimizers.RMSprop(lr_sched)
 		else:

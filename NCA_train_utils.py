@@ -358,7 +358,7 @@ def index_to_trainer_parameters(index):
 
 def index_to_learnrate_parameters(index):
 	"""
-		Takes job array index from 1-35 and constructs pair of loss function and optimiser
+		Takes job array index from 1-84 and constructs 4-tuple of learn rate, optimiser, training mode and gradient normalisation
 
 	"""
 	learn_rates = np.logspace(1,-5,7)
@@ -380,6 +380,26 @@ def index_to_learnrate_parameters(index):
 	mode = training_modes[indices[2]]
 	grad = grad_norm[indices[3]]
 	return lr,lr_name,opt,mode,grad
+
+
+def index_to_Nadam_parameters(index):
+	"""
+		Takes index from 1-N and constructs 3-tuple of learn rate, NCA to PDE step ratio and grad_norm
+
+	"""
+	learn_rates = np.logspace(1,-5,7)
+	learn_rates_name = ["1e1","1e0","1e-1","1e-2","1e-3","1e-4","1e-5"]
+	ratios = [1,2,4,8]
+	grad_norm = [True,False]
+	L1 = len(learn_rates)
+	L2 = len(ratios)
+	L3 = len(grad_norm)
+	indices = np.unravel_index(index,(L1,L2,L3))
+	lr = learn_rates[indices[0]]
+	lr_name = learn_rates_name[indices[0]]
+	ratio = ratios[indices[1]]
+	grad = grad_norm[indices[2]]
+	return lr,lr_name,ratio,grad
 """
 X = np.random.uniform(size=(5,128,128,7))
 #Y = np.random.uniform(size=(5,128,128,7))

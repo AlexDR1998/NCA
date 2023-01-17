@@ -12,22 +12,23 @@ import sys
 
 index=int(sys.argv[1])-1
 
-LEARN_RATE,LEARN_RATE_STRING,OPTIMIZER,TRAIN_MODE,NORM_GRADS = index_to_learnrate_parameters(index)
-
+#LEARN_RATE,LEARN_RATE_STRING,OPTIMIZER,TRAIN_MODE,NORM_GRADS = index_to_learnrate_parameters(index)
+LEARN_RATE,LEARN_RATE_STRING,RATIO,NORM_GRADS = index_to_Nadam_parameters(index)
 order=1
 N_CHANNELS = 4
 N_CHANNELS_PDE = 4
 N_BATCHES = 4
 OBS_CHANNELS=2
 TRAIN_ITERS = 4000
-multiplier_heat=1 # How many PDE timesteps per NCA timestep - useful if PDE is slow
 multiplier_rdif=8
+OPTIMIZER="Nadam"
+TRAIN_MODE="full"
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.01
 if NORM_GRADS:
-	readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_euclidean_lr_"+LEARN_RATE_STRING+"_"+TRAIN_MODE+"_grad_norm"
+	readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_euclidean_lr_"+LEARN_RATE_STRING+"_r_"+str(RATIO)+"_grad_norm"
 else:
-	readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_euclidean_lr_"+LEARN_RATE_STRING+"_"+TRAIN_MODE
+	readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_euclidean_lr_"+LEARN_RATE_STRING+"_r_"+str(RATIO)
 
 
 #--- Reaction Diffusion equation ------------------------------------------------------------------------------
@@ -73,7 +74,7 @@ x0[3,16:24,40:48]=0
 x0[3,40:48,16:24]=0
 
 x0[...,1] = 1-x0[...,0]
-trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,324,step_mul=multiplier_rdif,model_filename=readif_filename)
+trainer = NCA_PDE_Trainer(ca_readif,x0,F_readif_2,N_BATCHES,324,step_mul=RATIO,model_filename=readif_filename)
 trainer.train_sequence(TRAIN_ITERS,
 					   1,
 					   REG_COEFF=0.01,
