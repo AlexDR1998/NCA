@@ -400,12 +400,35 @@ def index_to_Nadam_parameters(index):
 	ratio = ratios[indices[1]]
 	grad = grad_norm[indices[2]]
 	return lr,lr_name,ratio,grad
-"""
-X = np.random.uniform(size=(5,128,128,7))
-#Y = np.random.uniform(size=(5,128,128,7))
-#Y[:,:64]=0
-Y = np.zeros((5,128,128,7))
-#X[2] = 1
 
-print(loss_hellinger(X,Y))
-"""
+
+
+def index_to_mitosis_parameters(index):
+	"""
+		Takes index from 1-N and constructs 3-tuple of loss function, time sampling rate and gradient normalisation
+	"""
+	loss_funcs = [loss_sliced_wasserstein_channels,
+				  loss_sliced_wasserstein_grid,
+				  loss_sliced_wasserstein_rotate,
+				  loss_spectral,
+				  loss_bhattacharyya_modified,
+				  loss_hellinger_modified,
+				  None]
+	loss_func_name =["sliced_wasserstein_channels",
+					 "sliced_wasserstein_grid",
+					 "sliced_wasserstein_rotate",
+					 "spectral",
+					 "bhattachryya",
+					 "hellinger",
+					 "euclidean"]
+	sampling_rates = [1,2,4,8,16]
+	grad_norm = [True,False]
+	L1 = len(loss_funcs)
+	L2 = len(sampling_rates)
+	L3 = len(grad_norm)
+	indices = np.unravel_index(index,(L1,L2,L3))
+	loss = loss_funcs[indices[0]]
+	loss_name = loss_func_name[indices[0]]
+	sampling = sampling_rates[indices[1]]
+	grad = grad_norm[indices[2]]
+	return loss,loss_name,sampling,grad
