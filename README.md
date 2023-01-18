@@ -1,0 +1,2 @@
+# NCA
+Neural Cellular Automata (NCA). Used primarily for modelling human embryonic stem cells for use in my PhD research.  Inspired by and based on the work of Mortvinstev et al: https://distill.pub/2020/growing-ca/ , this work extends their NCA framework to learn local rules that yield a time series of images, rather than growing one image from one pixel. This extension allows for modelling dynamical emergent behaviour, and can reproduce the behaviour of classic PDEs (heat, reaction diffusion) 
