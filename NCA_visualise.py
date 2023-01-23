@@ -14,6 +14,7 @@ import seaborn as sns
 
 
 
+
 class NCA_Visualiser(object):
   """
     Class for purposes of visualising and analysing trained NCA models
@@ -42,14 +43,20 @@ class NCA_Visualiser(object):
       my_animate(trajectory[:,0,...,:3])
       self.space_average(trajectory)
     return trajectory
-  def space_average(self,trajectory):
+  def space_average(self,trajectory,mode=0):
     """
       Plots spatial averages of channels over time
     """
-    plt.plot(np.mean(trajectory[:,0,...,0],axis=(1,2)),label="GSC",color="red")
-    plt.plot(np.mean(trajectory[:,0,...,1],axis=(1,2)),label="Brachyury T",color="green")
-    plt.plot(np.mean(trajectory[:,0,...,2],axis=(1,2)),label="SOX2",color="blue")
-    plt.plot(np.mean(trajectory[:,0,...,3],axis=(1,2)),label="Lamina B",color="black")
+    if mode==0:
+      plt.plot(np.mean(trajectory[:,0,...,0],axis=(1,2)),label="Red",color="red")
+      plt.plot(np.mean(trajectory[:,0,...,1],axis=(1,2)),label="Green",color="green")
+      plt.plot(np.mean(trajectory[:,0,...,2],axis=(1,2)),label="Blue",color="blue")
+      plt.plot(np.mean(trajectory[:,0,...,3],axis=(1,2)),label="Alpha",color="black")
+    else:
+      plt.plot(np.mean(trajectory[:,0,...,0],axis=(1,2)),label="GSC",color="red")
+      plt.plot(np.mean(trajectory[:,0,...,1],axis=(1,2)),label="Brachyury T",color="green")
+      plt.plot(np.mean(trajectory[:,0,...,2],axis=(1,2)),label="SOX2",color="blue")
+      plt.plot(np.mean(trajectory[:,0,...,3],axis=(1,2)),label="Lamina B",color="black")
     
     plt.plot(np.mean(trajectory[:,0,...,4:],axis=(1,2)),alpha=0.2,color="purple")
     plt.plot([],label="Hidden channels",alpha=0.2,color="purple")
@@ -167,12 +174,17 @@ class NCA_Visualiser(object):
     return trajectory
 
 
-  def save_image_sequence(self,trajectory,filename):
+  def save_image_sequence(self,trajectory,filename,normalise=True):
     """
       Saves a trajectory animation for the animate package of latex to show in presentations
     """
+    if normalise:
+      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
     for i in tqdm(range(trajectory.shape[0])):
-      plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
+      if normalise:
+        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
+      else:
+        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
       plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
 
   """  
@@ -214,10 +226,16 @@ class NCA_Visualiser(object):
       X = params[0].numpy()
       print(X.shape)
       N_CHANNELS = M.N_CHANNELS
-      weights_identity = X[0,0,:N_CHANNELS]
-      weights_laplacian= X[0,0,N_CHANNELS:2*N_CHANNELS]
-      weights_average = X[0,0,2*N_CHANNELS:]
-
+      #weights_identity = X[0,0,:N_CHANNELS]
+      #weights_laplacian= X[0,0,N_CHANNELS:2*N_CHANNELS]
+      #weights_average = X[0,0,2*N_CHANNELS:]
+      if M.KERNEL_TYPE=="ID_LAP":
+        weights_identity = X[0,0,::2]
+        weights_laplacian= X[0,0,1::2]
+      elif M.KERNEL_TYPE=="ID_LAP_AV":
+        weights_identity = X[0,0,::3]
+        weights_laplacian= X[0,0,1::3]
+        weights_average = X[0,0,2::3]
       #plt.plot(weights_identity)
       plt.boxplot(weights_identity.T)
       plt.xlabel("Channels")
@@ -231,14 +249,26 @@ class NCA_Visualiser(object):
       plt.title("Laplacian kernel weights")
       plt.show()
       
+      
       plt.boxplot(weights_average.T)
       plt.xlabel("Channels")
       plt.ylabel("1st layer weights")
       plt.title("Average kernel weights")
       plt.show()
+      
 
-
-
+  def plot_weight_matrices(self):
+    # Given an NCA, return heatmaps of its weight matrices
+    for M in self.NCA_models:
+      weights = M.dense_model.get_weights()
+      L = len(weights)-1
+      fig,ax = plt.subplots(1,L)
+      print(weights)
+      print(L)
+      for i in range(L):
+        print(weights[i].shape)
+        ax[i].imshow(weights[i][0,0])
+      plt.show()
 
   def activation_heatmap_1(self):
     """

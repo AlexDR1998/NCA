@@ -167,8 +167,35 @@ def loss_spectral(X,Y):
 	X_fft = tf.signal.rfft2d(X)
 	Y_fft = tf.signal.rfft2d(Y)
 
-	return tf.math.reduce_mean(tf.math.abs(X_fft-Y_fft),axis=[0,1,3])
+	return tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1,3])
 
+
+def loss_spectral_euclidean(X,Y):
+	"""
+		Implementation of euclidean distance in both real and FFT space
+
+		Parameters
+		----------
+		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+
+	"""
+	loss_real = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2])
+	X_ = tf.einsum("bxyc->xybc",X)
+	Y_ = tf.einsum("bxyc->xybc",Y)
+
+	X_fft = tf.signal.rfft2d(X_)
+	Y_fft = tf.signal.rfft2d(Y_)
+
+	loss_fft = tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1]) # note that X_fft has different axes as X
+
+	combined_loss = loss_real + loss_fft
+	return tf.math.reduce_mean(combined_loss,axis=-1)
 
 def loss_bhattacharyya(X,Y):
 	"""
@@ -337,12 +364,14 @@ def index_to_trainer_parameters(index):
 				  loss_sliced_wasserstein_rotate,
 				  loss_spectral,
 				  loss_bhattacharyya_modified,
+				  loss_spectral_euclidean,
 				  None]
 	loss_func_name =["sliced_wasserstein_channels",
 					 "sliced_wasserstein_grid",
 					 "sliced_wasserstein_rotate",
 					 "spectral",
 					 "bhattachryya",
+					 "spectral_euclidean",
 					 "euclidean"]
 
 	optimisers = ["Adagrad",
@@ -412,14 +441,14 @@ def index_to_mitosis_parameters(index):
 				  loss_sliced_wasserstein_rotate,
 				  loss_spectral,
 				  loss_bhattacharyya_modified,
-				  loss_hellinger_modified,
+				  loss_spectral_euclidean,
 				  None]
 	loss_func_name =["sliced_wasserstein_channels",
 					 "sliced_wasserstein_grid",
 					 "sliced_wasserstein_rotate",
 					 "spectral",
 					 "bhattachryya",
-					 "hellinger",
+					 "spectral_euclidean",
 					 "euclidean"]
 	sampling_rates = [1,2,4,8,16]
 	grad_norm = [True,False]
