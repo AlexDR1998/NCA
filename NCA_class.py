@@ -289,7 +289,7 @@ class NCA(tf.keras.Model):
 
 		if fire_rate is None:
 			fire_rate = self.FIRE_RATE
-		update_mask = tf.random.normal(tf.shape(x[:,:,:,:1])) <= fire_rate
+		update_mask = tf.random.uniform(tf.shape(x[:,:,:,:1]),minval=0.0,maxval=1.0) <= fire_rate
 
 		x_new = x + dx*tf.cast(update_mask,tf.float32)
 		
