@@ -436,28 +436,22 @@ def index_to_mitosis_parameters(index):
 	"""
 		Takes index from 1-N and constructs 3-tuple of loss function, time sampling rate and gradient normalisation
 	"""
-	loss_funcs = [loss_sliced_wasserstein_channels,
-				  loss_sliced_wasserstein_grid,
-				  loss_sliced_wasserstein_rotate,
-				  loss_spectral,
+	loss_funcs = [loss_spectral,
 				  loss_bhattacharyya_modified,
 				  loss_spectral_euclidean,
 				  None]
-	loss_func_name =["sliced_wasserstein_channels",
-					 "sliced_wasserstein_grid",
-					 "sliced_wasserstein_rotate",
-					 "spectral",
+	loss_func_name =["spectral",
 					 "bhattachryya",
 					 "spectral_euclidean",
 					 "euclidean"]
 	sampling_rates = [1,2,4,8,16]
-	grad_norm = [True,False]
+	#grad_norm = [True,False]
 	L1 = len(loss_funcs)
 	L2 = len(sampling_rates)
-	L3 = len(grad_norm)
-	indices = np.unravel_index(index,(L1,L2,L3))
+	#L3 = len(grad_norm)
+	indices = np.unravel_index(index,(L1,L2))
 	loss = loss_funcs[indices[0]]
 	loss_name = loss_func_name[indices[0]]
 	sampling = sampling_rates[indices[1]]
-	grad = grad_norm[indices[2]]
-	return loss,loss_name,sampling,grad
+	#grad = grad_norm[indices[2]]
+	return loss,loss_name,sampling

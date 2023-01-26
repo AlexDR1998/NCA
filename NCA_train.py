@@ -274,15 +274,23 @@ class NCA_Trainer(object):
 									 				axis=1),
 									 step=i)
 				if self.N_CHANNELS>=self.OBS_CHANNELS+3:	
-					for j in range((self.N_CHANNELS-1)//3-1):
-						if j==0:
-							hidden_channels = grids[i,...,4:7]
-						else:
-							hidden_channels = np.concatenate((hidden_channels,
-															  grids[i,...,((j+1)*3)+1:((j+2)*3)+1]))
+					
+					
+					hidden_channels = grids[i,...,self.OBS_CHANNELS:self.OBS_CHANNELS+3]
 					tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
-									 hidden_channels,step=i,max_outputs=(self.N_CHANNELS-1)//3-1)
-
+									 hidden_channels,step=i)
+					"""
+					for j in range((self.N_CHANNELS-1)//3-1):
+						try:
+							if j==0:
+								hidden_channels = grids[i,...,self.OBS_CHANNELS:self.OBS_CHANNELS+3]
+							else:
+								hidden_channels = np.concatenate((hidden_channels,
+																  grids[i,...,((j+1)*3)+1:((j+2)*3)+1]))
+						except:
+							pass
+					
+					"""
 	def train_step(self,x,iter_n,REG_COEFF=0,update_gradients=True,LOSS_FUNC=None,NORM_GRADS=True):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks model

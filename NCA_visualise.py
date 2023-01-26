@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import glob
 import numpy as np 
+import scipy as sp
 from NCA_utils import *
 from tqdm import tqdm
 #import cv2 
@@ -174,10 +175,12 @@ class NCA_Visualiser(object):
     return trajectory
 
 
-  def save_image_sequence(self,trajectory,filename,normalise=True):
+  def save_image_sequence_RGB(self,trajectory,filename,normalise=True):
     """
       Saves a trajectory animation for the animate package of latex to show in presentations
     """
+    
+    """ # really slow
     if normalise:
       trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
     for i in tqdm(range(trajectory.shape[0])):
@@ -186,7 +189,15 @@ class NCA_Visualiser(object):
       else:
         plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
       plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
-
+    """
+    if normalise:
+      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
+    for i in tqdm(range(trajectory.shape[0])):
+      if normalise:
+        plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
+      else:
+        plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0,...,:3],0,1))
+      #plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
   """  
   def save_video(self,trajectory,filename):
     trajectory = np.clip(0,1,trajectory)
@@ -204,6 +215,32 @@ class NCA_Visualiser(object):
 
     out.release()
   """
+  def save_image_sequence(self,trajectory,filename,zoom=4,normalise=True):
+    """
+      Saves a trajectory animation for the animate package of latex to show in presentations
+    """
+    
+    """ # really slow
+    if normalise:
+      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
+    for i in tqdm(range(trajectory.shape[0])):
+      if normalise:
+        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
+      else:
+        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
+      plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
+    """
+
+    if normalise:
+      trajectory = trajectory/np.max(trajectory)
+    trajectory = sp.ndimage.zoom(trajectory,zoom=[1,1,zoom,zoom],order=0)
+    for i in tqdm(range(trajectory.shape[0])):
+      if normalise:
+        plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0],0,1),vmin=0,vmax=1)
+      else:
+        plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0],0,1))
+      #plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
+  
   def distance_from_target(self,trajectory,target):
     dist = np.zeros(trajectory.shape[0])
     print(trajectory[0].shape)

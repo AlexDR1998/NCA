@@ -14,7 +14,7 @@ index=int(sys.argv[1])-1
 
 #LEARN_RATE,LEARN_RATE_STRING,OPTIMIZER,TRAIN_MODE,NORM_GRADS = index_to_learnrate_parameters(index)
 #LEARN_RATE,LEARN_RATE_STRING,RATIO,NORM_GRADS = index_to_Nadam_parameters(index)
-LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,NORM_GRADS = index_to_mitosis_parameters(index)
+LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING = index_to_mitosis_parameters(index)
 LEARN_RATE = 1e-3
 order=1
 N_CHANNELS = 6
@@ -26,10 +26,9 @@ OPTIMIZER="Nadam"
 TRAIN_MODE="full"
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.01
-if NORM_GRADS:
-	readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_grad_norm_v2"
-else:
-	readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_v2"
+
+readif_filename="training_exploration/PDE_readif_"+OPTIMIZER+"_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_grad_norm_v3"
+
 
 
 #--- Reaction Diffusion equation ------------------------------------------------------------------------------

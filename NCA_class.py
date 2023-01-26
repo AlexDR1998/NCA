@@ -19,10 +19,10 @@ class NCA(tf.keras.Model):
 			     FIRE_RATE=0.5,
 			     ADHESION_MASK=None,
 			     ACTIVATION="swish",
-			     LAYERS=3,
+			     LAYERS=2,
 			     OBS_CHANNELS=4,
 			     REGULARIZER=0.01,
-			     PADDING="zero",
+			     PADDING="periodic",
 			     KERNEL_TYPE="ID_LAP_AV",
 			     ORDER=1):
 		"""
