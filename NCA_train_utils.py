@@ -167,7 +167,7 @@ def loss_spectral(X,Y):
 	X_fft = tf.signal.rfft2d(X)
 	Y_fft = tf.signal.rfft2d(Y)
 
-	return tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1,3])
+	return tf.math.abs(tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1,3]))
 
 
 def loss_spectral_euclidean(X,Y):
@@ -192,7 +192,7 @@ def loss_spectral_euclidean(X,Y):
 	X_fft = tf.signal.rfft2d(X_)
 	Y_fft = tf.signal.rfft2d(Y_)
 
-	loss_fft = tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1]) # note that X_fft has different axes as X
+	loss_fft = tf.math.abs(tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1])) # note that X_fft has different axes as X
 
 	combined_loss = loss_real + loss_fft
 	return tf.math.reduce_mean(combined_loss,axis=-1)
