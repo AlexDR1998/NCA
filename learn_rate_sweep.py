@@ -81,5 +81,5 @@ trainer.train_sequence(TRAIN_ITERS,
 					   LEARN_RATE=LEARN_RATE,
 					   OPTIMIZER=OPTIMIZER,
 					   TRAIN_MODE=TRAIN_MODE,
-					   NORM_GRADS=NORM_GRADS,
+					   NORM_GRADS=True,
 					   LOSS_FUNC=LOSS_FUNC)
