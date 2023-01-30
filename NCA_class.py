@@ -268,7 +268,7 @@ class NCA(tf.keras.Model):
 
 		#--- If non-zero padding option given, pad x
 		if self.PADDING=="periodic":
-			x = periodic_padding(x,axis=(1,2),padding=(2,2))
+			x = periodic_padding(x,2)
 		if self.PADDING=="flat":
 			x = tf.pad(x,tf.constant([[0,0],[2,2],[2,2],[0,0]]),"SYMMETRIC")
 		

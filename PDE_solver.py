@@ -72,7 +72,7 @@ class PDE_solver(object):
 	def update(self,step_size):
 		
 		if self.PADDING=="periodic":
-			X_pad = periodic_padding(self.X,axis=(1,2),padding=(1,1))
+			X_pad = periodic_padding(self.X,1)
 		elif self.PADDING=="flat":
 			X_pad = tf.pad(self.X,tf.constant([[0,0],[1,1],[1,1],[0,0]]),"SYMMETRIC")
 		else:
