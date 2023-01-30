@@ -8,7 +8,7 @@ from NCA_utils import *
 from tqdm import tqdm
 #import cv2 
 import tensorflow as tf
-import seaborn as sns 
+
 """
 	Utilities and helper functions for visualising results. Don't use this on Eddie
 """
