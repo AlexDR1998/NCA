@@ -296,39 +296,33 @@ def adhesion_mask_batch(data):
 
 
 
-def periodic_padding(tensor,axis,padding=1):
-  """
-    Taken from: https://stackoverflow.com/questions/39088489/tensorflow-periodic-padding
-
-    add periodic padding to a tensor for specified axis
-    tensor: input tensor
-    axis: on or multiple axis to pad along, int or tuple
-    padding: number of cells to pad, int or tuple
-
-    return: padded tensor
-  """
 
 
-  if isinstance(axis,int):
-    axis = (axis,)
-  if isinstance(padding,int):
-    padding = (padding,)
 
-  ndim = len(tensor.shape)
-  for ax,p in zip(axis,padding):
-  # create a slice object that selects everything from all axes,
-  # except only 0:p for the specified for right, and -p: for left
+def periodic_padding(tensor,padding):
+    """
 
-    ind_right = [slice(-p,None) if i == ax else slice(None) for i in range(ndim)]
-    ind_left = [slice(0, p) if i == ax else slice(None) for i in range(ndim)]
-    right = tensor[ind_right]
-    left = tensor[ind_left]
+
+    Parameters
+    ----------
+    tensor : anytype (BATCHES,X,Y,C)
+        input 4-tensor
+    padding : int 
+        how far to pad on X and Y dimensions
+
+    Returns
+    -------
+    tensor : anytype (BATCHES,X+2*PADDING,Y+2*PADDING,C)
+        Periodically padded tensor
+    """
     middle = tensor
-    tensor = tf.concat([right,middle,left], axis=ax)
-
-  return tensor
-
-
-
-
-
+    right_x = tensor[:,-padding:]
+    left_x = tensor[:,:padding]
+    tensor_x = tf.concat([right_x,middle,left_x],axis=1)
+    
+    middle = tensor_x
+    right_xy = tensor_x[:,:,-padding:]
+    left_xy = tensor_x[:,:,:padding]
+    tensor_xy = tf.concat([right_xy,middle,left_xy],axis=2)
+    return tensor_xy
+    
