@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N rdiff_nadam_lfunc_sampling
+#$ -N nadam_versatility_test
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
@@ -14,5 +14,5 @@
 module load anaconda
 source activate nca_tensorflow
 
-python ./learn_rate_sweep.py $1
+python ./model_versatility_test.py $1
 source deactivate

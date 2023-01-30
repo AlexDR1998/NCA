@@ -258,6 +258,14 @@ def loss_bhattacharyya_modified(X,Y):
 	return tf.math.reduce_mean(B_loss,axis=-1) 
 
 
+def loss_bhattacharyya_euclidean(X,Y):
+    """
+        Combined loss of bhattachryya and euclidean
+    """
+    b_loss = loss_bhattacharyya_modified(X, Y)
+    e_loss = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2])
+    return b_loss+e_loss
+
 def loss_hellinger(X,Y):
 	"""
 		Implementation of hellinger distance of X and Y
@@ -441,7 +449,7 @@ def index_to_mitosis_parameters(index):
 				  loss_spectral_euclidean,
 				  None]
 	loss_func_name =["spectral",
-					 "bhattachryya",
+					 "bhattacharyya",
 					 "spectral_euclidean",
 					 "euclidean"]
 	sampling_rates = [1,2,4,8,16]
@@ -455,3 +463,25 @@ def index_to_mitosis_parameters(index):
 	sampling = sampling_rates[indices[1]]
 	#grad = grad_norm[indices[2]]
 	return loss,loss_name,sampling
+
+def index_to_generalise_test(index):
+    loss_funcs = [None,
+                  loss_bhattacharyya_modified,
+                  loss_bhattacharyya_euclidean]
+    loss_func_names = ["euclidean",
+                       "bhattacharyya",
+                       "bhattacharyya_euclidean"]
+    sampling_rates = [1,8,12,16,24]
+    tasks = ["heat",
+            "mitosis",
+            "coral",
+            "act_inh"]
+    L1 = len(loss_funcs)
+    L2 = len(sampling_rates)
+    L3 = len(tasks)
+    indices = np.unravel_index(index,(L1,L2,L3))
+    loss = loss_funcs[indices[0]]
+    loss_name = loss_func_names[indices[0]]
+    sampling = sampling_rates[indices[1]]
+    task = tasks[indices[2]]
+    return loss,loss_name,sampling,task
