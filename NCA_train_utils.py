@@ -474,8 +474,7 @@ def index_to_generalise_test(index):
     sampling_rates = [1,8,12,16,24]
     tasks = ["heat",
             "mitosis",
-            "coral",
-            "act_inh"]
+            "coral"]
     L1 = len(loss_funcs)
     L2 = len(sampling_rates)
     L3 = len(tasks)

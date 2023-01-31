@@ -14,15 +14,15 @@ N_CHANNELS_EMOJI = 16
 N_CHANNELS_PDE = 6
 N_BATCHES = 4
 OBS_CHANNELS_PDE=2
-TRAIN_ITERS = 8000
+TRAIN_ITERS = 1000
 LEARN_RATE = 1e-3
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.01
 OPTIMIZER="Nadam"
-
+TRAIN_MODE="full"
 LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
-PDE_STEPS=2048//SAMPLING
-FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v1"
+PDE_STEPS=1024//SAMPLING
+FILENAME = "trainer_validation/TEST_Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v1"
 
 
 
@@ -97,7 +97,7 @@ elif TASK=="mitosis":
     x0[3,40:48,16:24]=0
 
     x0[...,1] = 1-x0[...,0]
-    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_chem_mitosis, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=readif_filename)
+    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_chem_mitosis, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=FILENAME)
     trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
 
 elif TASK=="coral":
@@ -128,8 +128,9 @@ elif TASK=="coral":
     x0[3,40:48,16:24]=0
 
     x0[...,1] = 1-x0[...,0]
-    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_chem_coral, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=readif_filename)
+    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_chem_coral, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=FILENAME)
     trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
+"""
 elif TASK=="act_inh":
     ca_readif =NCA(N_CHANNELS_PDE,
     			   FIRE_RATE=1,
@@ -158,5 +159,6 @@ elif TASK=="act_inh":
     x0[3,40:48,16:24]=0
 
     x0[...,1] = 1-x0[...,0]
-    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_act, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=readif_filename)
+    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_act, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=FILENAME)
     trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
+"""
