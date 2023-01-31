@@ -260,25 +260,28 @@ class NCA_Trainer(object):
 			grids[...,self.OBS_CHANNELS:] = (1+np.tanh(grids[...,self.OBS_CHANNELS:]))/2.0
 			for i in range(iter_n*self.T*2):
 				if self.RGB_mode=="RGB":
-					tf.summary.image('Trained NCA dynamics RGB',
+					tf.summary.image('Trained NCA dynamics RGB at step '+str(self.time_of_best_model),
 									 grids[i,...,:self.OBS_CHANNELS],
 									 step=i)
 				elif self.RGB_mode=="RGBA":
-					tf.summary.image('Trained NCA dynamics RGBA',
+					tf.summary.image('Trained NCA dynamics RGBA at step '+str(self.time_of_best_model),
 									 grids[i,...,:self.OBS_CHANNELS],
 									 step=i)
 				elif self.RGB_mode=="RGB-A":
-					tf.summary.image('Trained NCA dynamics RGB --- Alpha',
+					tf.summary.image('Trained NCA dynamics RGB --- Alpha at step '+str(self.time_of_best_model),
 									 np.concatenate((grids[i,...,:self.OBS_CHANNELS-1],
 									 				 np.repeat(grids[i,...,self.OBS_CHANNELS-1:self.OBS_CHANNELS],3,axis=-1)),
 									 				axis=1),
 									 step=i)
-				if self.N_CHANNELS>=self.OBS_CHANNELS+3:	
+				if self.N_CHANNELS>self.OBS_CHANNELS:	
 					
 					
-					hidden_channels = grids[i,...,self.OBS_CHANNELS:self.OBS_CHANNELS+3]
-					tf.summary.image('Trained NCA hidden dynamics (tanh limited)',
-									 hidden_channels,step=i)
+					hidden_channels = grids[i,...,self.OBS_CHANNELS:]
+					hidden_channels_reshaped = hidden_channels[...,0]
+					for k in range(1,hidden_channels.shape[-1]):
+						hidden_channels_reshaped = tf.concat([hidden_channels_reshaped,hidden_channels[...,k]],axis=1)
+					tf.summary.image('Trained NCA hidden dynamics (tanh limited) at step '+str(self.time_of_best_model),
+									 hidden_channels_reshaped,step=i)
 					"""
 					for j in range((self.N_CHANNELS-1)//3-1):
 						try:
@@ -419,6 +422,7 @@ class NCA_Trainer(object):
 		#--- Do training loop
 		
 		best_mean_loss = 100000
+		self.time_of_best_model = 0
 		N_BATCHES = self.N_BATCHES
 		print(N_BATCHES)
 		print(self.x0.shape)
@@ -443,6 +447,7 @@ class NCA_Trainer(object):
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
 				
 				self.BEST_TRAJECTORY = self.NCA_model.run(self.x0,iter_n*self.T*2,N_BATCHES=self.N_BATCHES).numpy()
+				self.time_of_best_model = i
 				best_mean_loss = mean_loss
 
 			loss = np.hstack((mean_loss,losses))
@@ -1399,7 +1404,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			
 		#--- Do training loop
 		
-		best_mean_loss = 100000
+		best_mean_loss = 1e10
+		previous_mean_loss = 1e10
 		N_BATCHES = self.N_BATCHES
 		print(N_BATCHES)
 		print(self.x0.shape)
@@ -1416,26 +1422,27 @@ class NCA_PDE_Trainer(NCA_Trainer):
 												 TRAIN_MODE=TRAIN_MODE,
 												 NORM_GRADS=NORM_GRADS)#,i%4==0)
 			
-
-			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
+			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps			
+			assert not tf.math.reduce_any(tf.math.is_nan(x)), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
 			
-
 			if N_BATCHES>1:
 				self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
 			
 
 
-			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
-			if (mean_loss<best_mean_loss) and (i>TRAIN_ITERS//10):
+			#--- Save model each time it is better than previous best model (and after 1% of training iterations are done)
+			self.time_of_best_model = 0
+			if (mean_loss<best_mean_loss) and (mean_loss < previous_mean_loss and (i>10)):
 				if self.model_filename is not None:
 					self.NCA_model.save_wrapper(self.model_filename)
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
 				
 				self.BEST_TRAJECTORY = self.NCA_model.run(self.x0,iter_n*self.T*2,N_BATCHES=self.N_BATCHES).numpy()
+				self.time_of_best_model = i
 				best_mean_loss = mean_loss
 
 			loss = np.hstack((mean_loss,losses))
-			
+			previous_mean_loss = mean_loss
 			
 			#--- Write to log
 			self.tb_training_loop_log_sequence(loss,x,i)
