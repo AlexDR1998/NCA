@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 #------ Loss functions -------
-
+@tf.function
 def loss_sliced_wasserstein_channels(X,Y,num=64):
 	"""
 		Implementation of the sliced wasserstein loss described by Heitz et al 2021
@@ -52,7 +52,7 @@ def loss_sliced_wasserstein_channels(X,Y,num=64):
 
 
 
-
+@tf.function
 def loss_sliced_wasserstein_grid(X,Y,num=256):
 	"""
 		Implementation of the sliced wasserstein loss described by Heitz et al 2021
@@ -93,7 +93,7 @@ def loss_sliced_wasserstein_grid(X,Y,num=256):
 	#print(tf.math.reduce_sum(X_proj,axis=1))
 
 
-
+@tf.function
 def loss_sliced_wasserstein_rotate(X,Y,num=24):
 	"""
 		Implementation of the sliced wasserstein loss described by Heitz et al 2021
@@ -144,7 +144,7 @@ def loss_sliced_wasserstein_rotate(X,Y,num=24):
 	diff_2 = tf.math.reduce_mean((X_sort_2-Y_sort_2)**2,axis=[1,2])
 
 	return diff_1+diff_2
-
+@tf.function
 def loss_spectral(X,Y):
 	"""
 		Implementation of euclidean distance of FFTs of X and Y
@@ -169,7 +169,7 @@ def loss_spectral(X,Y):
 
 	return tf.math.abs(tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1,3]))
 
-
+@tf.function
 def loss_spectral_euclidean(X,Y):
 	"""
 		Implementation of euclidean distance in both real and FFT space
@@ -196,7 +196,7 @@ def loss_spectral_euclidean(X,Y):
 
 	combined_loss = loss_real + loss_fft
 	return tf.math.reduce_mean(combined_loss,axis=-1)
-
+@tf.function
 def loss_bhattacharyya(X,Y):
 	"""
 		Implementation of bhattarcharyya distance of X and Y
@@ -225,7 +225,7 @@ def loss_bhattacharyya(X,Y):
 
 	return tf.math.reduce_mean(B_loss,axis=-1) 
 
-
+@tf.function
 def loss_bhattacharyya_modified(X,Y):
 	"""
 		Implementation of bhattarcharyya distance of X and Y. Modified to account for 
@@ -257,7 +257,7 @@ def loss_bhattacharyya_modified(X,Y):
 
 	return tf.math.reduce_mean(B_loss,axis=-1) 
 
-
+@tf.function
 def loss_bhattacharyya_euclidean(X,Y):
     """
         Combined loss of bhattachryya and euclidean
@@ -265,7 +265,7 @@ def loss_bhattacharyya_euclidean(X,Y):
     b_loss = loss_bhattacharyya_modified(X, Y)
     e_loss = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2])
     return b_loss+e_loss
-
+@tf.function
 def loss_hellinger(X,Y):
 	"""
 		Implementation of hellinger distance of X and Y
@@ -293,7 +293,7 @@ def loss_hellinger(X,Y):
 	
 	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])
 	return tf.math.reduce_mean(H_bc,axis=-1)
-
+@tf.function
 def loss_hellinger_modified(X,Y):
 	"""
 		Implementation of hellinger distance of X and Y
@@ -322,7 +322,7 @@ def loss_hellinger_modified(X,Y):
 	sqrt_diff = tf.math.sqrt(X_norm) - tf.math.sqrt(Y_norm)
 	
 	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])*(1+tf.math.abs(X_amp-Y_amp))
-
+	return H_bc
 
 def plot_to_image(figure):
 	"""Converts the matplotlib plot specified by 'figure' to a PNG image and
