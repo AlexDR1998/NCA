@@ -275,13 +275,15 @@ class NCA_Trainer(object):
 									 step=i)
 				if self.N_CHANNELS>self.OBS_CHANNELS:	
 					
-					
-					hidden_channels = grids[i,...,self.OBS_CHANNELS:]
-					hidden_channels_reshaped = hidden_channels[...,0]
-					for k in range(1,hidden_channels.shape[-1]):
-						hidden_channels_reshaped = tf.concat([hidden_channels_reshaped,hidden_channels[...,k]],axis=1)
-					tf.summary.image('Trained NCA hidden dynamics (tanh limited) at step '+str(self.time_of_best_model),
-									 hidden_channels_reshaped,step=i)
+					try:
+						hidden_channels = grids[i,...,self.OBS_CHANNELS:]
+						hidden_channels_reshaped = hidden_channels[...,0]
+						for k in range(1,hidden_channels.shape[-1]):
+							hidden_channels_reshaped = tf.concat([hidden_channels_reshaped,hidden_channels[...,k]],axis=1)
+						tf.summary.image('Trained NCA hidden dynamics (tanh limited) at step '+str(self.time_of_best_model),
+										 hidden_channels_reshaped,step=i)
+					except:
+						pass
 					"""
 					for j in range((self.N_CHANNELS-1)//3-1):
 						try:
@@ -398,7 +400,7 @@ class NCA_Trainer(object):
 		elif OPTIMIZER=="Adadelta":
 			self.trainer = tf.keras.optimizers.Adadelta()#(lr_sched)
 		elif OPTIMIZER=="Nadam":
-			self.trainer = tf.keras.optimizers.Nadam()#lr_sched)
+			self.trainer = tf.keras.optimizers.Nadam(LEARN_RATE)#lr_sched)
 		elif OPTIMIZER=="RMSprop":
 			self.trainer = tf.keras.optimizers.RMSprop(lr_sched)
 		else:
