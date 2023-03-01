@@ -870,13 +870,13 @@ class NCA_IC_Trainer(NCA_Trainer):
 			#tf.summary.scalar('Loss 2',loss[2],step=i)
 			#tf.summary.scalar('Loss 3',loss[3],step=i)
 			tf.summary.histogram('Loss ',loss,step=i)
-			
+	@tf.function		
 	def loss_func_max(self,x,x0):
 		"""
 			Loss function for training to minimise. Averages over batches, returns error per time slice (sequence)
 			
 			Maximal initial condition perturbation, minimal final condition perturbation
-
+			Regularise to penalise x0 outwith range [0,1]
 			Parameters
 			----------
 			x : float32 tensor [(T-1)*N_BATCHES,size,size,N_CHANNELS]
@@ -887,12 +887,15 @@ class NCA_IC_Trainer(NCA_Trainer):
 			loss : float32 tensor [T]
 				Array of errors at each timestep
 		"""
+		epsilon=0.0001
 		target_err = tf.math.reduce_euclidean_norm((x[...,:4]-self.target),[-2,-3,-1])
 		initial_err= tf.math.reduce_euclidean_norm((x0[...,:4]-self.x0_true),[-2,-3,-1])
-		initial_reg= tf.math.reduce_euclidean_norm(x0[...,:4])
-		return tf.reduce_mean(tf.reshape(target_err-initial_err,(-1,self.N_BATCHES)),-1) + initial_reg
-
-
+		#initial_reg= tf.math.reduce_euclidean_norm(x0[...,:4])
+		mask_reg = tf.reduce_sum(((tf.cast(tf.math.greater(epsilon,self.x0),self.x0.dtype)[...,:4])*x0[...,:4])**2)
+		initial_reg = tf.reduce_sum(tf.nn.relu(-x0[...,:4])+tf.nn.relu(x0[...,:4]-1))
+		return tf.reduce_mean(tf.reshape(target_err**2-initial_err**2,(-1,self.N_BATCHES)),-1) + initial_reg**2 + mask_reg
+		
+	@tf.function
 	def loss_func_min(self,x,x0):
 		"""
 			Loss function for training to minimise. Averages over batches, returns error per time slice (sequence)
@@ -909,11 +912,14 @@ class NCA_IC_Trainer(NCA_Trainer):
 			loss : float32 tensor [T]
 				Array of errors at each timestep
 		"""
+		epsilon = 0.0001
 		target_err = tf.math.reduce_euclidean_norm((x[...,:4]-self.target),[-2,-3,-1])
 		initial_err= tf.math.reduce_euclidean_norm((x0[...,:4]-self.x0_true),[-2,-3,-1])
-		initial_reg= tf.math.reduce_euclidean_norm(x0[...,:4])
-		return tf.reduce_mean(tf.reshape(initial_err-target_err,(-1,self.N_BATCHES)),-1) + initial_reg
-
+		#initial_reg= tf.math.reduce_euclidean_norm(x0[...,:4])
+		initial_reg = tf.reduce_sum(tf.nn.relu(-x0[...,:4])+tf.nn.relu(x0[...,:4]-1))
+		mask_reg = tf.reduce_sum(((tf.cast(tf.math.greater(epsilon,self.x0),self.x0.dtype)[...,:4])*x0[...,:4])**2)
+		return tf.reduce_mean(tf.reshape(initial_err**2-target_err**2,(-1,self.N_BATCHES)),-1) + initial_reg**2 + mask_reg
+	
 	def train_step(self,x0,iter_n,update_gradients=True):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks initial conditions
@@ -968,7 +974,8 @@ class NCA_IC_Trainer(NCA_Trainer):
 		lr = 2e-3
 		#lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
 		lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
-		self.trainer = tf.keras.optimizers.Adam(lr_sched)
+		#self.trainer = tf.keras.optimizers.Adam(lr_sched)
+		self.trainer = tf.keras.optimizers.Nadam(lr)
 		#trainer = tf.keras.optimizers.RMSprop(lr_sched)
 		
 		#--- Setup adhesion and decay masks
@@ -998,7 +1005,7 @@ class NCA_IC_Trainer(NCA_Trainer):
 			self.tb_training_loop_log_sequence(loss,self.x0,x,i)
 		print("-------- Training complete ---------")
 		#--- Write resulting animation to tensorboard			
-		self.tb_write_result(iter_n)
+		#self.tb_write_result(iter_n)
 
 		
 
