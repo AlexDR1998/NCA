@@ -263,7 +263,7 @@ def loss_bhattacharyya_euclidean(X,Y):
         Combined loss of bhattachryya and euclidean
     """
     b_loss = loss_bhattacharyya_modified(X, Y)
-    e_loss = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2])
+    e_loss = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2,3])
     return b_loss+e_loss
 @tf.function
 def loss_hellinger(X,Y):
@@ -453,16 +453,16 @@ def index_to_mitosis_parameters(index):
 					 "spectral_euclidean",
 					 "euclidean"]
 	sampling_rates = [1,2,4,8,16]
-	#grad_norm = [True,False]
+	grad_norm = [True,False]
 	L1 = len(loss_funcs)
 	L2 = len(sampling_rates)
-	#L3 = len(grad_norm)
-	indices = np.unravel_index(index,(L1,L2))
+	L3 = len(grad_norm)
+	indices = np.unravel_index(index,(L1,L2,L3))
 	loss = loss_funcs[indices[0]]
 	loss_name = loss_func_name[indices[0]]
 	sampling = sampling_rates[indices[1]]
-	#grad = grad_norm[indices[2]]
-	return loss,loss_name,sampling
+	grad = grad_norm[indices[2]]
+	return loss,loss_name,sampling,grad
 
 def index_to_generalise_test(index):
     loss_funcs = [None,
