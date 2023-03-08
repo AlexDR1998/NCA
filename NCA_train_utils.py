@@ -261,6 +261,16 @@ def loss_bhattacharyya_modified(X,Y):
 def loss_bhattacharyya_euclidean(X,Y):
     """
         Combined loss of bhattachryya and euclidean
+		
+		Parameters
+		----------
+		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
     """
     b_loss = loss_bhattacharyya_modified(X, Y)
     e_loss = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2,3])

@@ -173,9 +173,33 @@ class NCA_Visualiser(object):
       my_animate(trajectory[:,0,...,:3])
       self.space_average(trajectory)
     return trajectory
+  
+  def save_image_sequence_RGBA(self,trajectory,filename,zoom=4,normalise=False):
+    """
+      Saves a trajectory animation for the animate package of latex to show in presentations
+    """
+    
+    """ # really slow
+    if normalise:
+      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
+    for i in tqdm(range(trajectory.shape[0])):
+      if normalise:
+        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
+      else:
+        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
+      plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
+    """
+    if normalise:
+      trajectory[...,:4] = trajectory[...,:4]/np.max(trajectory[...,:4])
+    trajectory = sp.ndimage.zoom(trajectory,zoom=[1,1,zoom,zoom,1],order=0)
+    for i in tqdm(range(trajectory.shape[0])):
+      if normalise:
+        plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0,...,:4],0,1),vmin=0,vmax=1)
+      else:
+        plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0,...,:4],0,1))
+      #plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
 
-
-  def save_image_sequence_RGB(self,trajectory,filename,normalise=True):
+  def save_image_sequence_RGB(self,trajectory,filename,zoom=4,normalise=False):
     """
       Saves a trajectory animation for the animate package of latex to show in presentations
     """
@@ -192,6 +216,7 @@ class NCA_Visualiser(object):
     """
     if normalise:
       trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
+    trajectory = sp.ndimage.zoom(trajectory,zoom=[1,1,zoom,zoom,1],order=0)  
     for i in tqdm(range(trajectory.shape[0])):
       if normalise:
         plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)

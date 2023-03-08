@@ -302,7 +302,8 @@ class NCA_Trainer(object):
 			
 			Parameters
 			----------
-
+			x : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			
 			iter_n : int
 				number of NCA update s
 				teps to run ca
