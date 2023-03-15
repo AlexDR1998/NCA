@@ -496,34 +496,39 @@ class NCA(tf.keras.Model):
 		return cls(**config)
 
 	
-	def save_wrapper(self,filename=None):
+	def save_wrapper(self,filename=None,directory="models/"):
 		"""
 			Saves the trainable part of the model - the dense nn trained on the perception field.
 			Wrapper for keras.models.save function, puts things in the right directory etc.
 
 			Parameters
 			----------
-			filename : str
-				Name of directory where keras SavedModel files are contained
+			filename : str optional
+				Name of subdirectory where keras SavedModel files are contained
+			directory : str optional
+				Name of directory where all models get stored, defaults to 'models/'
 		"""
 
 		if filename is None:
 			filename=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		
-		self.save("models/"+filename)
+		self.save(directory+filename)
 
 
 
-def load_wrapper(filename):
+def load_wrapper(filename,directory="models/"):
 	"""
 		Loads the trainable part of the model - the dense nn trained on the perception field
 
 		Parameters
 		----------
 		filename : str
-			Name of directory where keras SavedModel files are contained
+			Name of subdirectory where keras SavedModel files are contained
+		directory : str optional
+			Name of directory where all models get stored, defaults to 'models/'
+			
 	"""
-	return tf.keras.models.load_model("models/"+filename,custom_objects={"NCA":NCA})
+	return tf.keras.models.load_model(directory+filename,custom_objects={"NCA":NCA})
 	
 
 	

@@ -17,7 +17,7 @@ class NCA_Trainer(object):
 	
 	"""
 
-	def __init__(self,NCA_model,data,N_BATCHES,model_filename=None,RGB_mode="RGBA"):
+	def __init__(self,NCA_model,data,N_BATCHES,model_filename=None,RGB_mode="RGBA",directory="models/"):
 		"""
 			Initialiser method
 
@@ -40,6 +40,8 @@ class NCA_Trainer(object):
 				RGBA : 4 channel RGBA image (i.e. PNG with transparancy)
 				RGB : 3 channel RGB image
 				RGB-A : 3+1 channel - a 3 channel RGB image alongside a black and white image representing the alpha channel
+			directory : str
+				Name of directory where all models get stored, defaults to 'models/'
 		"""
 		
 		
@@ -61,8 +63,8 @@ class NCA_Trainer(object):
 			self.model_filename = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		else:
 			self.model_filename = model_filename
-
-		print("Saving to "+model_filename)
+		self.directory = directory
+		print("Saving to: "+directory+model_filename)
 		
 		#--- Setup initial condition
 		if data.shape[1]==1:
@@ -446,7 +448,7 @@ class NCA_Trainer(object):
 			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
 			if (mean_loss<best_mean_loss) and (i>TRAIN_ITERS//10):
 				if self.model_filename is not None:
-					self.NCA_model.save_wrapper(self.model_filename)
+					self.NCA_model.save_wrapper(self.model_filename,self.directory)
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
 				
 				self.BEST_TRAJECTORY = self.NCA_model.run(self.x0,iter_n*self.T*2,N_BATCHES=self.N_BATCHES).numpy()
@@ -530,9 +532,9 @@ class NCA_Trainer_stem_cells(NCA_Trainer):
 		Handles the discrepancy of timesteps 0h, 24h, 36h etc...,
 		Correctly labels proteins in data for tensorboard logging
 	"""
-	def __init__(self,NCA_model,data,N_BATCHES,model_filename=None):
+	def __init__(self,NCA_model,data,N_BATCHES,model_filename=None,directory="models/"):
 
-		super().__init__(NCA_model,data,N_BATCHES,model_filename,"RGB-A")
+		super().__init__(NCA_model,data,N_BATCHES,model_filename,"RGB-A",directory)
 		
 		x0 = np.copy(self.data[:])
 		x0[1:] = self.data[:-1] # Including 1 extra time slice to account for hidden 12h time
@@ -779,7 +781,7 @@ class NCA_Trainer_stem_cells(NCA_Trainer):
 			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
 			if (mean_loss<best_mean_loss) and (i>TRAIN_ITERS//10):
 				if self.model_filename is not None:
-					self.NCA_model.save_wrapper(self.model_filename)
+					self.NCA_model.save_wrapper(self.model_filename,self.directory)
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
 				best_mean_loss = mean_loss
 
@@ -1016,7 +1018,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		Class to train a NCA to the output of a PDE simulation
 	"""
 
-	def __init__(self,NCA_model,x0,F,N_BATCHES,T,step_mul=1,model_filename=None):
+	def __init__(self,NCA_model,x0,F,N_BATCHES,T,step_mul=1,model_filename=None,directory="models/"):
 		"""
 			Initialiser method
 
@@ -1046,6 +1048,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 				RGBA : 4 channel RGBA image (i.e. PNG with transparancy)
 				RGB : 3 channel RGB image
 				RGB-A : 3+1 channel - a 3 channel RGB image alongside a black and white image representing the alpha channel
+			directory : str
+				Name of directory where all models get stored, defaults to 'models/'
 		"""
 
 
@@ -1064,7 +1068,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		data_min = np.min(data)
 		data = (data-data_min)/(data_max-data_min)
 
-		super().__init__(NCA_model,data,N_BATCHES,model_filename)
+		super().__init__(NCA_model,data,N_BATCHES,model_filename,directory=directory)
 		
 		assert x0.shape[-1]==self.OBS_CHANNELS, "Observable channels of NCA does not match data dimensions"
 
@@ -1444,7 +1448,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			self.time_of_best_model = 0
 			if (mean_loss<best_mean_loss) and (mean_loss < previous_mean_loss and (i>10)):
 				if self.model_filename is not None:
-					self.NCA_model.save_wrapper(self.model_filename)
+					self.NCA_model.save_wrapper(self.model_filename,self.directory)
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
 				
 				self.BEST_TRAJECTORY = self.NCA_model.run(self.x0,iter_n*self.T*2,N_BATCHES=self.N_BATCHES).numpy()

@@ -61,7 +61,7 @@ def load_loss_log(summary_dir):
 
 
 
-def load_emoji_sequence(filename_sequence,downsample=2):
+def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsample=2):
   """
     Loads a sequence of images in impath_emojis
     Parameters
