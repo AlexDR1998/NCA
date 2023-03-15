@@ -1,7 +1,7 @@
 from NCA_class import *
 from NCA_train import *
 from NCA_utils import *
-from GOL_solver import *
+from GOL_solver import GOL_solver
 import numpy as np
 import os 
 import sys
