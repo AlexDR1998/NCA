@@ -1314,8 +1314,8 @@ class NCA_PDE_Trainer(NCA_Trainer):
 					   UPDATE_RATE=1,
 					   REG_COEFF=0,
 					   LOSS_FUNC=None,
-					   LEARN_RATE=2e-2,
-					   OPTIMIZER="Adagrad",
+					   LEARN_RATE=1e-3,
+					   OPTIMIZER="Nadam",
 					   BATCH_SIZE=64,
 					   TRAIN_MODE="full",
 					   NORM_GRADS=True):

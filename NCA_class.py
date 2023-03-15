@@ -52,6 +52,7 @@ class NCA(tf.keras.Model):
 				 "ID_LAP_AV","ID_DIFF_AV","ID_DIFF_LAP",			- Identity and 2 others
 				 "ID_DIFF_LAP_AV",									- Identity and all 3 others
 				 "DIFF_LAP_AV","DIFF_AV","LAP_AV"					- Average and other non-identity
+				 "GOL"                                              - Identity and Moore neighbourhood
 			ORDER : int optional
 				Highest order polynomial terms of channels.
 				1 - only linear channels, no cross terms
@@ -128,6 +129,7 @@ class NCA(tf.keras.Model):
 						[0.5,-3,0.5],
 						[0.25,0.5,0.25]]).astype(np.float32)
 		av = np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.float32)/9.0
+		moore=np.array([[1,1,1],[1,0,1],[1,1,1]]).astype(np.float32)
 		
 
 		#------------------------------------------------------------------------------
@@ -152,7 +154,8 @@ class NCA(tf.keras.Model):
 			kernel = tf.stack([dx,dy,lap,av],-1)[:,:,None,:]
 		if self.KERNEL_TYPE=="DIFF_AV":
 			kernel = tf.stack([dx,dy,av],-1)[:,:,None,:]
-
+		if self.KERNEL_TYPE=="GOL":
+			kernel = tf.stack([I,moore],-1)[:,:,None,:]
 		#--- If including 2nd order channels (squares and cross multiplication), 
 		#    expand KERNEL appropriately
 

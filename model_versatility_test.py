@@ -12,9 +12,10 @@ import sys
 index=int(sys.argv[1])-1
 N_CHANNELS_EMOJI = 16
 N_CHANNELS_PDE = 6
+N_CHANNELS_GOL = 16
 N_BATCHES = 4
 OBS_CHANNELS_PDE=2
-TRAIN_ITERS = 1000
+TRAIN_ITERS = 4000
 LEARN_RATE = 1e-3
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.01
@@ -22,7 +23,7 @@ OPTIMIZER="Nadam"
 TRAIN_MODE="full"
 LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
 PDE_STEPS=1024//SAMPLING
-FILENAME = "trainer_validation/TEST_Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v1"
+FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v2"
 
 
 
@@ -130,35 +131,12 @@ elif TASK=="coral":
     x0[...,1] = 1-x0[...,0]
     trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_chem_coral, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=FILENAME)
     trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
-"""
-elif TASK=="act_inh":
-    ca_readif =NCA(N_CHANNELS_PDE,
-    			   FIRE_RATE=1,
-    			   OBS_CHANNELS=2,
-    			   REGULARIZER=NCA_WEIGHT_REG,
-    			   KERNEL_TYPE="ID_LAP")
 
-    print(ca_readif)
-
-    x0 = np.ones((N_BATCHES,64,64,2)).astype(np.float32)
-
-    #x0[1,:32]=0
-    x0[0,24:40,24:40]=0
-    x0[1,16:24,16:24]=0
-    x0[1,48:56,48:56]=0
-    x0[1,10:30,34:54]=0
-    x0[1,34:54,10:30]=0
-    x0[2,30:34]=0
-    x0[2,40:44,30:34]=0
-    x0[2,20:24,24:40]=0
-
-
-    x0[3,4:24,16:24]=0
-    x0[3,42:46,40:60]=0
-    x0[3,16:24,40:48]=0
-    x0[3,40:48,16:24]=0
-
-    x0[...,1] = 1-x0[...,0]
-    trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_act, N_BATCHES, PDE_STEPS, step_mul=SAMPLING, model_filename=FILENAME)
-    trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
-"""
+elif TASK=="gol":
+	
+	
+	gol = GOL_solver(N_BACTHES,[128,128])
+	data = gol.run(16)[...,None]
+	ca_gol = NCA(N_CHANNELS_GOL,FIRE_RATE=1,REGULARIZER=NCA_WEIGHT_REG,OBS_CHANNELS=1)
+	trainer = NCA_Trainer(ca_gol, data, N_BATCHES, model_filename=FILENAME)
+	trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)

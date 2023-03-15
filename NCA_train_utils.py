@@ -477,14 +477,19 @@ def index_to_mitosis_parameters(index):
 def index_to_generalise_test(index):
     loss_funcs = [None,
                   loss_bhattacharyya_modified,
-                  loss_bhattacharyya_euclidean]
+                  loss_bhattacharyya_euclidean,
+				  loss_spectral,
+				  loss_hellinger_modified]
     loss_func_names = ["euclidean",
                        "bhattacharyya",
-                       "bhattacharyya_euclidean"]
-    sampling_rates = [1,8,12,16,24]
+                       "bhattacharyya_euclidean",
+					   "spectral",
+					   "hellinger"]
+    sampling_rates = [1,2,4,8,16]
     tasks = ["heat",
             "mitosis",
-            "coral"]
+            "coral",
+			"gol"]
     L1 = len(loss_funcs)
     L2 = len(sampling_rates)
     L3 = len(tasks)
