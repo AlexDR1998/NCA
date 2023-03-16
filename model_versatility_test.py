@@ -12,14 +12,14 @@ import sys
 
 index=int(sys.argv[1])-1
 N_CHANNELS_EMOJI = 16
-N_CHANNELS_PDE = 6
+N_CHANNELS_PDE = 8
 N_CHANNELS_GOL = 16
 N_BATCHES = 4
 OBS_CHANNELS_PDE=2
-TRAIN_ITERS = 4000
+TRAIN_ITERS = 8000
 LEARN_RATE = 1e-3
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
-NCA_WEIGHT_REG = 0.01
+NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
 TRAIN_MODE="full"
 LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
@@ -136,8 +136,22 @@ elif TASK=="coral":
 elif TASK=="gol":
 	
 	
-	gol = GOL_solver(N_BACTHES,[128,128])
+	gol = GOL_solver(N_BATCHES,[128,128])
 	data = gol.run(16)[...,None]
-	ca_gol = NCA(N_CHANNELS_GOL,FIRE_RATE=1,REGULARIZER=NCA_WEIGHT_REG,OBS_CHANNELS=1)
-	trainer = NCA_Trainer(ca_gol, data, N_BATCHES, model_filename=FILENAME)
-	trainer.train_sequence(TRAIN_ITERS, SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
+	ca_gol = NCA(N_CHANNELS_GOL,
+			     FIRE_RATE=1,
+				 REGULARIZER=NCA_WEIGHT_REG,
+				 OBS_CHANNELS=1,
+				 KERNEL_TYPE="GOL")
+	trainer = NCA_Trainer(ca_gol,
+					      data, 
+						  N_BATCHES, 
+						  model_filename=FILENAME)
+	trainer.train_sequence(TRAIN_ITERS, 
+						   SAMPLING, 
+						   REG_COEFF=0.01, 
+						   LEARN_RATE=LEARN_RATE, 
+						   OPTIMIZER=OPTIMIZER, 
+						   TRAIN_MODE=TRAIN_MODE, 
+						   NORM_GRADS=True, 
+						   LOSS_FUNC=LOSS_FUNC)

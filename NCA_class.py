@@ -21,7 +21,7 @@ class NCA(tf.keras.Model):
 			     ACTIVATION="swish",
 			     LAYERS=2,
 			     OBS_CHANNELS=4,
-			     REGULARIZER=0.01,
+			     REGULARIZER=0.001,
 			     PADDING="periodic",
 			     KERNEL_TYPE="ID_LAP_AV",
 			     ORDER=1):
