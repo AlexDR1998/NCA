@@ -151,7 +151,6 @@ elif TASK=="gol":
 						   SAMPLING, 
 						   REG_COEFF=0.01, 
 						   LEARN_RATE=LEARN_RATE, 
-						   OPTIMIZER=OPTIMIZER, 
-						   TRAIN_MODE=TRAIN_MODE, 
+						   OPTIMIZER=OPTIMIZER, 						            
 						   NORM_GRADS=True, 
 						   LOSS_FUNC=LOSS_FUNC)
