@@ -19,7 +19,7 @@ def loss_sliced_wasserstein_channels(X,Y,num=64):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		num : int optional
 			Number of random projections to average over
@@ -61,7 +61,7 @@ def loss_sliced_wasserstein_grid(X,Y,num=256):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		num : int optional
 			Number of random projections to average over
@@ -102,7 +102,7 @@ def loss_sliced_wasserstein_rotate(X,Y,num=24):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		num : int optional
 			Number of random projections to average over
@@ -152,7 +152,7 @@ def loss_spectral(X,Y):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -176,7 +176,7 @@ def loss_spectral_euclidean(X,Y):
 
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -207,7 +207,7 @@ def loss_bhattacharyya(X,Y):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -237,7 +237,7 @@ def loss_bhattacharyya_modified(X,Y):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -264,7 +264,7 @@ def loss_bhattacharyya_euclidean(X,Y):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -286,7 +286,7 @@ def loss_hellinger(X,Y):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -314,7 +314,7 @@ def loss_hellinger_modified(X,Y):
 		
 		Parameters
 		----------
-		X,Y : float23 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
 			Data to compute loss on
 		
 
@@ -332,8 +332,94 @@ def loss_hellinger_modified(X,Y):
 	sqrt_diff = tf.math.sqrt(X_norm) - tf.math.sqrt(Y_norm)
 	
 	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])*(1+tf.math.abs(X_amp-Y_amp))
-	return H_bc
+	return tf.math.reduce_mean(H_bc,axis=-1)
 
+
+
+
+@tf.function
+def loss_kl_divergence(X,Y):
+	"""
+		Wrapper for the tensorflow kullback-leibler divergence, mostly just reshaping data for it.
+	
+
+		Parameters
+		----------
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+
+	"""
+	kl = tf.keras.losses.KLDivergence(reduction=tf.keras.losses.Reduction.SUM)
+	size = tf.cast(X.shape[1]*X.shape[2]*X.shape[3],tf.float32)
+	k_comb = lambda xy: kl(xy[0],xy[1])
+	loss = tf.vectorized_map(k_comb, (X,Y))
+	return loss / size
+	
+
+#----- Helper functions for sinkhorn loss
+
+@tf.function
+def pdist(x, y):
+	print(x.shape)
+	dx = x[:, None, :] - y[None, :, :]
+	return tf.reduce_sum(tf.square(dx), -1)
+
+@tf.function
+def Sinkhorn_step(C, f):
+	g = tf.reduce_logsumexp(-f-tf.transpose(C), -1)
+	f = tf.reduce_logsumexp(-g-C, -1)
+	return f, g
+
+def Sinkhorn(C, f=None, niter=1000):
+	n = tf.shape(C)[0]
+	if f is None:
+		f = tf.zeros(n, np.float32)
+	for i in range(niter):
+		f, g = Sinkhorn_step(C, f)
+	P = tf.exp(-f[:,None]-g[None,:]-C)/tf.cast(n, tf.float32)
+	return tf.reduce_sum(P*C)
+
+
+def loss_sinkhorn(X,Y):
+	"""
+	
+		Wrapper for computing OT loss with sinkhorn algorithm. Code taken from
+		https://colab.research.google.com/github/znah/notebooks/blob/master/mini_sinkhorn.ipynb#scrollTo=mP68HY4Bric5
+		
+		Parameters
+		----------
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+	
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+
+	"""
+	B = X.shape[0]
+	Ch= X.shape[-1]
+	X_flat = tf.reshape(tf.einsum("bxyc->bcxy",X),(B,Ch,-1))
+	Y_flat = tf.reshape(tf.einsum("bxyc->bcxy",Y),(B,Ch,-1))
+	#print(X_flat.shape)
+	b_sink = lambda xy: Sinkhorn(pdist(xy[0],xy[1]))
+	#loss = tf.vectorized_map(b_sink, tf.stack((X_flat,Y_flat),-1))
+	#@tf.function
+	#def _func(elems):
+	#	return tf.map_fn(b_sink,elems,fn_output_signature=tf.float32)
+		
+	loss = tf.map_fn(b_sink,(X_flat,Y_flat),fn_output_signature=tf.float32)
+	"""
+	loss = []
+	for b in range(B):
+		loss.append(b_sink(X_flat[b],Y_flat[b]))
+	"""
+	return tf.cast(loss,tf.float32)
+	
 def plot_to_image(figure):
 	"""Converts the matplotlib plot specified by 'figure' to a PNG image and
 	returns it. The supplied figure is closed and inaccessible after this call."""
