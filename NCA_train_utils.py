@@ -565,12 +565,16 @@ def index_to_generalise_test(index):
                   loss_bhattacharyya_modified,
                   loss_bhattacharyya_euclidean,
 				  loss_spectral,
-				  loss_hellinger_modified]
+				  loss_hellinger_modified,
+				  loss_kl_divergence,
+				  loss_sinkhorn]
     loss_func_names = ["euclidean",
                        "bhattacharyya",
                        "bhattacharyya_euclidean",
 					   "spectral",
-					   "hellinger"]
+					   "hellinger",
+					   "kl_divergence",
+					   "sinkhorn"]
     sampling_rates = [1,2,4,8,16]
     tasks = ["heat",
             "mitosis",
