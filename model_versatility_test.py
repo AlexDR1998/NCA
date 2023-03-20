@@ -24,7 +24,7 @@ OPTIMIZER="Nadam"
 TRAIN_MODE="full"
 LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
 PDE_STEPS=1024//SAMPLING
-FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v2"
+FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v3"
 
 
 
