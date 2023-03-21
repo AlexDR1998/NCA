@@ -647,7 +647,7 @@ class NCA_Trainer_stem_cells(NCA_Trainer):
 				tf.summary.histogram('Layer 0 weights',model_params_0[0],step=i)
 				tf.summary.histogram('Layer 1 weights',model_params_1[0],step=i)
 				#tf.summary.histogram('Layer 2 weights',model_params_2[0],step=i)
-				tf.summary.histogram('Layer 0 biases',model_params_0[1],step=i)
+				#tf.summary.histogram('Layer 0 biases',model_params_0[1],step=i)
 				tf.summary.histogram('Layer 1 biases',model_params_1[1],step=i)
 				#tf.summary.histogram('Layer 2 biases',model_params_2[1],step=i)
 

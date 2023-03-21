@@ -24,7 +24,7 @@ OPTIMIZER="Nadam"
 TRAIN_MODE="full"
 LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
 PDE_STEPS=1024//SAMPLING
-FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v3"
+FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v4"
 
 
 
@@ -55,7 +55,12 @@ def F_heat(X,Xdx,Xdy,Xdd,D=0.33):
 
 if TASK=="heat":
 	#--------------------------------- Heat Equation ---------------------------------------------
-    ca_heat = NCA(N_CHANNELS_PDE,FIRE_RATE=1,OBS_CHANNELS=OBS_CHANNELS_PDE,REGULARIZER=NCA_WEIGHT_REG,KERNEL_TYPE="ID_LAP")
+    ca_heat = NCA(N_CHANNELS_PDE,
+				  FIRE_RATE=1,
+				  OBS_CHANNELS=OBS_CHANNELS_PDE,
+				  REGULARIZER=NCA_WEIGHT_REG,
+				  KERNEL_TYPE="ID_LAP",
+				  ACTIVATION="relu")
     print(ca_heat)    
     x0 = np.random.uniform(size=(N_BATCHES,64,64,OBS_CHANNELS_PDE)).astype(np.float32)
     x0[0,24:40,24:40]=1
@@ -76,7 +81,8 @@ elif TASK=="mitosis":
     			   FIRE_RATE=1,
     			   OBS_CHANNELS=2,
     			   REGULARIZER=NCA_WEIGHT_REG,
-    			   KERNEL_TYPE="ID_LAP")
+    			   KERNEL_TYPE="ID_LAP",
+				   ACTIVATION="relu")
 
     print(ca_readif)
 
@@ -107,7 +113,8 @@ elif TASK=="coral":
     			   FIRE_RATE=1,
     			   OBS_CHANNELS=2,
     			   REGULARIZER=NCA_WEIGHT_REG,
-    			   KERNEL_TYPE="ID_LAP")
+    			   KERNEL_TYPE="ID_LAP",
+				   ACTIVATION="relu")
 
     print(ca_readif)
 
@@ -136,13 +143,14 @@ elif TASK=="coral":
 elif TASK=="gol":
 	
 	
-	gol = GOL_solver(N_BATCHES,[128,128])
-	data = gol.run(16)[...,None]
+	gol = GOL_solver(N_BATCHES,[64,64])
+	data = gol.run(16*SAMPLING)[::SAMPLING,...,None]
 	ca_gol = NCA(N_CHANNELS_GOL,
 			     FIRE_RATE=1,
-				 REGULARIZER=NCA_WEIGHT_REG,
+				 REGULARIZER=0,
 				 OBS_CHANNELS=1,
-				 KERNEL_TYPE="GOL")
+				 KERNEL_TYPE="GOL",
+				 ACTIVATION="relu")
 	trainer = NCA_Trainer(ca_gol,
 					      data, 
 						  N_BATCHES, 
