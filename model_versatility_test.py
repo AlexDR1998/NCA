@@ -142,9 +142,10 @@ elif TASK=="coral":
 
 elif TASK=="gol":
 	
-	
+	#--- Note that time sampling is different for GoL. Instead of matching one
+	#    NCA update with one GoL update, we match 1 GoL to n NCA updates
 	gol = GOL_solver(N_BATCHES,[64,64])
-	data = gol.run(16*SAMPLING)[::SAMPLING,...,None]
+	data = gol.run(SAMPLING)[...,None]
 	ca_gol = NCA(N_CHANNELS_GOL,
 			     FIRE_RATE=1,
 				 REGULARIZER=0,
