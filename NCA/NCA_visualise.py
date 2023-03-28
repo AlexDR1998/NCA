@@ -177,19 +177,10 @@ class NCA_Visualiser(object):
   
   def save_image_sequence_RGBA(self,trajectory,filename,zoom=4,normalise=False):
     """
-      Saves a trajectory animation for the animate package of latex to show in presentations
+      Saves a trajectory with 'frame***.png' format for each timepoint
     """
     
-    """ # really slow
-    if normalise:
-      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
-    for i in tqdm(range(trajectory.shape[0])):
-      if normalise:
-        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
-      else:
-        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
-      plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
-    """
+   
     if normalise:
       trajectory[...,:4] = trajectory[...,:4]/np.max(trajectory[...,:4])
     trajectory = sp.ndimage.zoom(trajectory,zoom=[1,1,zoom,zoom,1],order=0)
@@ -202,19 +193,10 @@ class NCA_Visualiser(object):
 
   def save_image_sequence_RGB(self,trajectory,filename,zoom=4,normalise=False):
     """
-      Saves a trajectory animation for the animate package of latex to show in presentations
+      Saves a trajectory with 'frame***.png' format for each timepoint
     """
     
-    """ # really slow
-    if normalise:
-      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
-    for i in tqdm(range(trajectory.shape[0])):
-      if normalise:
-        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
-      else:
-        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
-      plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
-    """
+   
     if normalise:
       trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
     trajectory = sp.ndimage.zoom(trajectory,zoom=[1,1,zoom,zoom,1],order=0)  
@@ -224,39 +206,13 @@ class NCA_Visualiser(object):
       else:
         plt.imsave(filename+"frame"+f"{i:03}"+".png",np.clip(trajectory[i,0,...,:3],0,1))
       #plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
-  """  
-  def save_video(self,trajectory,filename):
-    trajectory = np.clip(0,1,trajectory)
-    trajectory[...,:3]*=trajectory[...,3:4]
-    trajectory = np.floor(255*trajectory).astype(np.uint8)
-
-    its = trajectory.shape[0]
-    am=3
-    frameSize = (trajectory.shape[2],trajectory.shape[3])
-    print("Frame size: "+str(frameSize))
-    out = cv2.VideoWriter(str(filename)+'.avi',cv2.VideoWriter_fourcc(*'FMP4'), 8, frameSize)
-    for i in range(its):
-        #img = np.uint8(images[i])
-        out.write(trajectory[i,0,...,:3])
-
-    out.release()
-  """
+  
   def save_image_sequence(self,trajectory,filename,zoom=4,normalise=True):
     """
-      Saves a trajectory animation for the animate package of latex to show in presentations
+      Saves a trajectory with 'frame***.png' format for each timepoint
     """
     
-    """ # really slow
-    if normalise:
-      trajectory[...,:3] = trajectory[...,:3]/np.max(trajectory[...,:3])
-    for i in tqdm(range(trajectory.shape[0])):
-      if normalise:
-        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1),vmin=0,vmax=1)
-      else:
-        plt.imshow(np.clip(trajectory[i,0,...,:3],0,1))
-      plt.savefig(filename+"frame"+f"{i:03}"+".png",bbox_inches="tight")
-    """
-
+   
     if normalise:
       trajectory = trajectory/np.max(trajectory)
     trajectory = sp.ndimage.zoom(trajectory,zoom=[1,1,zoom,zoom],order=0)
@@ -401,143 +357,6 @@ class NCA_Visualiser(object):
         #print(M.dense_model(X)
       plt.imshow(heatmap)
       plt.show()
-
-  #def run_activations(self,x0,steps):
-    """
-      Runs a NCA from x0 like NCA.run(), but outputs increments from individual kernels
-    """
-    #for M in self.NCA_models:
-
-
-  def maximal_perturbations(self,data,iter_n,TRAIN_ITERS=1000,N_BATCHES=4):
-    """
-      Finds the largest perturbations to the initial condition such that subsequent states are unchanged.
-      Formally find X to minimise: sum_i(d(True_i,Pred_i)) - d(Init,X)
-
-      Parameters
-      ----------
-      data : float32 tensor [T,batches,size,size,4]
-        The image sequence being modelled. data[0] is treated as the initial condition
-
-      Returns
-      -------
-      x0 : float32 tensor [(T-1)*batches,size,size,4]
-        Set of perturbed initial conditions
-    """
-    #--- Setup training algorithm
-
-    lr = 2e-3
-    #lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([TRAIN_ITERS//2], [lr, lr*0.1])
-    lr_sched = tf.keras.optimizers.schedules.ExponentialDecay(lr, TRAIN_ITERS, 0.96)
-    trainer = tf.keras.optimizers.Adam(lr_sched)
-    
-
-    #--- Iterate over list of NCA models
-    for M in self.NCA_models:
-      
-      if data.shape[1]==1:
-        #If there is only 1 batch of data, repeat it along batch axis N_BATCHES times
-        data = np.repeat(data,N_BATCHES,axis=1).astype("float32")
-      
-      #--- Pre-process initial conditions
-      x0 = np.copy(data[:-1])
-      x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
-      x0_true = tf.convert_to_tensor(x0, dtype=tf.float32)
-      x0 = np.clip(x0 +0.01*np.random.normal(size=x0.shape),0,1)
-      x0 = tf.Variable(tf.convert_to_tensor(x0,dtype=tf.float32))
-      print(x0.shape)
-      
-      #--- Pre-process target states
-      target = np.copy(data[1:])
-      target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
-      target = tf.convert_to_tensor(target,dtype=tf.float32)
-      
-      #T = data.shape[0]
-      z0 = tf.zeros((x0.shape[0],x0.shape[1],x0.shape[2],M.N_CHANNELS-x0.shape[3]))
-      
-      
-
-
-      def loss(x,x0):
-        """
-          Loss function for training to minimise. Averages over batches, returns error per time slice (sequence)
-
-          Parameters
-          ----------
-          x : float32 tensor [(T-1)*N_BATCHES,size,size,N_CHANNELS]
-            Current state of NCA grids, in sequence training mode
-          
-          Returns
-          -------
-          loss : float32 tensor [T]
-            Array of errors at each timestep
-        """
-
-        target_err = tf.math.reduce_euclidean_norm((x[...,:4]-target),[-2,-3,-1])
-        initial_err= tf.math.reduce_euclidean_norm((x0[...,:4]-x0_true[...,:4]),[-2,-3,-1])
-        initial_reg= tf.math.reduce_euclidean_norm(x0[...,:4])
-        return tf.reduce_mean(tf.reshape(target_err-initial_err,(-1,N_BATCHES)),-1)+initial_reg
-
-      def trajectory_iteration(x0):
-        """
-          Runs the NCA from initial condition X for steps number of steps
-
-
-          Parameters
-          ----------
-          x0 : float32 tensor [(T-1)*N_BATCHES,size,size,4]
-        """
-        #x0 = tf.convert_to_tensor(x0, dtype=tf.float32)
-
-        if M.ADHESION_MASK is not None:
-          _mask = np.zeros((data[0:1].shape),dtype="float32")
-          _mask[...,4]=1
-          _mask = tf.convert_to_tensor(_mask, dtype=tf.float32)
-
-
-        #reg_log = []
-        with tf.GradientTape() as g:
-          g.watch(x0)
-          x0_full = tf.concat((x0,z0),axis=-1)
-          #print(x0_full.shape)
-          x=tf.identity(x0_full)
-          for i in range(iter_n):
-            x = M(x)
-            if M.ADHESION_MASK is not None:
-              x = _mask*M.ADHESION_MASK + (1-_mask)*x
-            
-            #--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
-            #above_1 = tf.math.maximum(tf.reduce_max(x),1) - 1
-            #below_0 = tf.math.maximum(tf.reduce_max(-x),0)
-            #reg_log.append(tf.math.maximum(above_1,below_0))
-            
-          #print(x.shape)
-          losses = loss(x,x0) 
-          #reg_loss = tf.cast(tf.reduce_mean(reg_log),tf.float32)
-          mean_loss = tf.reduce_mean(losses)# + REG_COEFF*reg_loss
-          #print(mean_loss)
-          #print(tf.reduce_sum(x0))
-        grads = g.gradient(mean_loss,x0)
-        #print("Gradient shape: "+str(grads.shape))
-        #print(grads)
-        grads = [g/(tf.norm(g)+1e-8) for g in grads]
-        x0_shape = x0.shape
-        #plt.imshow(x0[0])
-        #plt.show()
-        #plt.imshow(grads[0])
-        #plt.show()
-        trainer.apply_gradients(zip([grads], [x0]))
-        #grads_flat = tf.reshape(grads,-1)
-        #x0_flat = tf.reshape(x0,-1)
-        #trainer.apply_gradients(zip(grads_flat, x0_flat))
-        #x0 = tf.reshape(x0_flat,x0_shape)
-
-        return x0
-      #--- Do training loop but modifiy initial condition
-      for j in tqdm(range(TRAIN_ITERS)):
-        x0 = trajectory_iteration(x0)
-      return x0
-
 
 
 
