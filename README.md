@@ -2,7 +2,7 @@
 Neural Cellular Automata (NCA). Used primarily for modelling human embryonic stem cells for use in my PhD research.  Inspired by and based on the work of Mortvinstev et al: https://distill.pub/2020/growing-ca/ , this work extends their NCA framework to learn local rules that yield a time series of images, rather than growing one image from one pixel. This extension allows for modelling dynamical emergent behaviour, and can reproduce the behaviour of classic PDEs (heat, reaction diffusion) 
 
 ## Code structure
-The code is structured as followed.
+The code in the NCA/ subdirectory is structured as followed.
 - Fundamental NCA code
   - NCA_class.py contains the actual NCA model wrapped in a class for convenience, with saving/loading functionality.
   - NCA_train.py contains the NCA_Trainer class for fitting an NCA to data, as well as subclasses that tweak the functionality for PDEs or exploring the stability of NCA - initial condition pairs
