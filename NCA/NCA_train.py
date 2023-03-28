@@ -185,20 +185,7 @@ class NCA_Trainer(object):
 			#tf.summary.scalar('Loss 3',loss[3],step=i)
 			tf.summary.histogram('Loss ',loss,step=i)
 			if i%10==0:
-				"""
-				tf.summary.image('12h GSC - Brachyury T - SOX2 --- Lamina B',
-								 np.concatenate((x[:N_BATCHES,...,:3],np.repeat(x[:N_BATCHES,...,3:4],3,axis=-1)),axis=0),
-								 step=i)
-				tf.summary.image('24h GSC - Brachyury T - SOX2 --- Lamina B',
-								 np.concatenate((x[N_BATCHES:2*N_BATCHES,...,:3],np.repeat(x[N_BATCHES:2*N_BATCHES,...,3:4],3,axis=-1)),axis=0),
-								 step=i)
-				tf.summary.image('36h GSC - Brachyury T - SOX2 --- Lamina B',
-								 np.concatenate((x[2*N_BATCHES:3*N_BATCHES,...,:3],np.repeat(x[2*N_BATCHES:3*N_BATCHES,...,3:4],3,axis=-1)),axis=0),
-								 step=i)
-				tf.summary.image('48h GSC - Brachyury T - SOX2 --- Lamina B',
-								 np.concatenate((x[3*N_BATCHES:4*N_BATCHES,...,:3],np.repeat(x[3*N_BATCHES:4*N_BATCHES,...,3:4],3,axis=-1)),axis=0),
-								 step=i)
-				"""
+
 				#model_params=[]
 				#for n in range(self.NCA_model.N_layers):
 				#	model_params.append(self.NCA_model.dense_model.layers[n].get_weights())
@@ -215,7 +202,8 @@ class NCA_Trainer(object):
 					tf.summary.histogram('Layer '+str(n)+' weights',model_params[0],step=i)
 					
 					figure = plt.figure(figsize=(5,5))
-					plt.imshow(model_params[0][0,0])
+					col_range = max(np.max(model_params[0][0,0]),-np.min(model_params[0][0,0]))
+					plt.imshow(model_params[0][0,0],cmap="seismic",vmax=col_range,vmin=-col_range)
 					if n==0:
 						plt.ylabel(r"N_CHANNELS$\star$ KERNELS")
 					else:
