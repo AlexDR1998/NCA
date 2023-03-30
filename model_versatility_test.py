@@ -1,7 +1,7 @@
-from NCA_class import *
-from NCA_train import *
-from NCA_utils import *
-from GOL_solver import GOL_solver
+from NCA.NCA_class import *
+from NCA.NCA_train import *
+from NCA.NCA_utils import *
+from NCA.GOL_solver import GOL_solver
 import numpy as np
 import os 
 import sys
@@ -163,3 +163,17 @@ elif TASK=="gol":
 						   OPTIMIZER=OPTIMIZER, 						            
 						   NORM_GRADS=True, 
 						   LOSS_FUNC=LOSS_FUNC)
+elif TASK=="emoji":
+	data = load_emoji_sequence(["alien_monster.png","butterfly.png","rooster_1f413.png","rooster_1f413.png"],downsample=2)
+	print(data)
+	ca = NCA(N_CHANNELS_EMOJI,
+		     ACTIVATION="relu",
+			 REGULARIZER=NCA_WEIGHT_REG,
+			 LAYERS=2,
+			 KERNEL_TYPE="ID_LAP_AV",
+			 PADDING="zero")
+	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=FILENAME)
+	trainer.data_pad_augment(2,10)
+	trainer.data_noise_augment(0.001)
+	print(ca)
+	trainer.train_sequence(TRAIN_ITERS,SAMPLING,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,LEARN_RATE=LEARN_RATE)
