@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import scipy as sp
 import datetime
-from NCA_utils import periodic_padding
+from NCA.NCA_utils import periodic_padding
 
 class NCA(tf.keras.Model):
 	""" 

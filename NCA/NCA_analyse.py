@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import glob
 import numpy as np 
-from NCA_utils import *
+from NCA.NCA_utils import *
 from tqdm import tqdm
 import tensorflow as tf 
 from NCA_analyse_utils import *

@@ -5,7 +5,7 @@ import glob
 import subprocess
 import numpy as np 
 import scipy as sp
-from NCA_utils import *
+from NCA.NCA_utils import *
 from tqdm import tqdm
 #import cv2 
 import tensorflow as tf
