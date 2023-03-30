@@ -1,11 +1,12 @@
 import numpy as np
 #import silence_tensorflow.auto # shuts up tensorflow's spammy warning messages
 import tensorflow as tf
+import tensorflow_model_optimization.sparsity.keras as tfmot
 #import scipy as sp
 from tqdm import tqdm
 import datetime
-from PDE_solver import PDE_solver
-from NCA_train_utils import *
+from NCA.PDE_solver import PDE_solver
+from NCA.NCA_train_utils import *
 from time import time
 
 
@@ -64,6 +65,7 @@ class NCA_Trainer(object):
 		else:
 			self.model_filename = model_filename
 		self.directory = directory
+		self.LOG_DIR = "logs/gradient_tape/"+self.model_filename+"/train"
 		print("Saving to: "+directory+model_filename)
 		
 		#--- Setup initial condition
@@ -83,11 +85,14 @@ class NCA_Trainer(object):
 		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
 		self.data = data
 		self.x0_true = np.copy(self.x0)
+		self.PRUNE = False
 		self.setup_tb_log_sequence()
 		print("---Shapes of NCA_Trainer variables---")
 		print("data: "+str(self.data.shape))
 		print("X0: "+str(self.x0.shape))
 		print("Target: "+str(self.target.shape))
+		
+		
 
 	
 	def loss_func(self,x,x_true=None):
@@ -124,19 +129,19 @@ class NCA_Trainer(object):
 		#	current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		#	train_log_dir = "logs/gradient_tape/"+current_time+"/train"
 		#else:
-		train_log_dir = "logs/gradient_tape/"+self.model_filename+"/train"
-		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+		
+		train_summary_writer = tf.summary.create_file_writer(self.LOG_DIR)
 		
 		#--- Log the graph structure of the NCA
 		tf.summary.trace_on(graph=True,profiler=True)
 		y = self.NCA_model.perceive(self.x0)
 		with train_summary_writer.as_default():
-			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
+			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=self.LOG_DIR)
 		
 		tf.summary.trace_on(graph=True,profiler=True)
 		x = self.NCA_model(self.x0)
 		with train_summary_writer.as_default():
-			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
+			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=self.LOG_DIR)
 		
 		#--- Log the target image and initial condtions
 		with train_summary_writer.as_default():
@@ -184,6 +189,8 @@ class NCA_Trainer(object):
 			#tf.summary.scalar('Loss 2',loss[2],step=i)
 			#tf.summary.scalar('Loss 3',loss[3],step=i)
 			tf.summary.histogram('Loss ',loss,step=i)
+			tf.summary.scalar("Layer 1 weight sparsity",np.count_nonzero(self.NCA_model.dense_model.layers[0].get_weights()[0]==0),step=i)
+			tf.summary.scalar("Layer 2 weight sparsity",np.count_nonzero(self.NCA_model.dense_model.layers[1].get_weights()[0]==0),step=i)
 			if i%10==0:
 
 				#model_params=[]
@@ -286,6 +293,43 @@ class NCA_Trainer(object):
 							pass
 					
 					"""
+	
+	def prune_setup(self,sparsity=0.5):
+		"""		
+		Wraps the NCA_model.dense_model network in the tfmot.sparsity.keras.prune_low_magnitude() 
+		framework to prune model weights during training, forcing a sparser model.
+
+
+		Parameters
+		----------
+		sparsity : float in [0,1]
+			target sparsity
+
+		Returns
+		-------
+		None.
+
+		"""
+		
+		pruning_params = {'pruning_schedule': tfmot.ConstantSparsity(sparsity, 0),
+					      'block_size': (1, 1),
+						  'block_pooling_type': 'AVG'}
+		
+		self.NCA_model.dense_model = tfmot.prune_low_magnitude(self.NCA_model.dense_model,**pruning_params)
+		self.PRUNE = True
+		self.NCA_model.dense_model.optimizer = self.trainer
+		self.PRUNE_CALLBACK = tfmot.UpdatePruningStep()
+		self.PRUNE_CALLBACK.set_model(self.NCA_model.dense_model)
+		self.PRUNE_LOG = tfmot.PruningSummaries(log_dir=self.LOG_DIR)
+		self.PRUNE_LOG.set_model(self.NCA_model.dense_model)
+		
+	
+	def prune_remove(self):
+		"""
+			Removes the pruning wrappers and writes self.NCA_model.dense_model with the parameters of self.NCA_model.pruned_dense_model
+		"""
+		self.NCA_model.dense_model = tfmot.strip_pruning(self.NCA_model.dense_model)
+		self.PRUNE = False
 	def train_step(self,x,iter_n,REG_COEFF=0,update_gradients=True,LOSS_FUNC=None,NORM_GRADS=True):
 		"""
 			Training step. Runs NCA model once, calculates loss gradients and tweaks model
@@ -320,6 +364,8 @@ class NCA_Trainer(object):
 			loss_func = lambda x: LOSS_FUNC(x[...,:self.OBS_CHANNELS],self.target)
 		
 		
+		
+		
 
 		with tf.GradientTape() as g:
 			reg_log = []
@@ -329,24 +375,32 @@ class NCA_Trainer(object):
 					x = _mask*self.NCA_model.ADHESION_MASK + (1-_mask)*x
 				
 				#--- Intermediate state regulariser, to penalise any pixels being outwith [0,1]
-				#above_1 = tf.math.maximum(tf.reduce_max(x),1) - 1
-				#below_0 = tf.math.maximum(tf.reduce_max(-x),0)
-				#reg_log.append(tf.math.maximum(above_1,below_0))
 				reg_log.append(tf.reduce_sum(tf.nn.relu(-x)+tf.nn.relu(x-1)))
 				
 			#print(x.shape)
-			losses = self.LOSS_WEIGHTS*loss_func(x) 
+			losses = loss_func(x) 
 			reg_loss = tf.cast(tf.reduce_mean(reg_log),tf.float32)
 			mean_loss = tf.reduce_mean(losses) + REG_COEFF*reg_loss
 					
 		if update_gradients:
-			grads = g.gradient(mean_loss,self.NCA_model.dense_model.weights)
+			
+			if self.PRUNE:
+				grads = g.gradient(mean_loss,self.NCA_model.dense_model.trainable_variables)
+			else:
+				grads = g.gradient(mean_loss,self.NCA_model.dense_model.weights)
+			
+			
 			if NORM_GRADS:
 				grads = [g/(tf.norm(g)+1e-8) for g in grads]
-			self.trainer.apply_gradients(zip(grads, self.NCA_model.dense_model.weights))
+			
+			if self.PRUNE:
+				self.trainer.apply_gradients(zip(grads, self.NCA_model.dense_model.trainable_variables))
+				
+			else:
+				self.trainer.apply_gradients(zip(grads, self.NCA_model.dense_model.weights))
 		return x, mean_loss,losses
 
-	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=2e-3,OPTIMIZER="Adagrad",NORM_GRADS=True):
+	def train_sequence(self,TRAIN_ITERS,iter_n,UPDATE_RATE=1,REG_COEFF=0,LOSS_FUNC=None,LEARN_RATE=2e-3,OPTIMIZER="Adagrad",NORM_GRADS=True,INJECT_TRUE=True,LOSS_WEIGHTS=None,PRUNE_MODEL=False,SPARSITY=0.5):
 		"""
 			Trains the ca to recreate the given image sequence. Error is calculated by comparing ca grid to each image after iter_n/T steps 
 			
@@ -374,11 +428,17 @@ class NCA_Trainer(object):
 				Select which tensorflow.keras.optimizers method to use
 			LOSS_WEIGHTS : float32 tensor [T] optional
 				If provided, weights how much each timestep in a trajectory contributes to loss calculations
-			
+			INJECT_TRUE : bool optional
+				If true, after each iter_n iterations of NCA, one sample from the true trajectory is injected back into the current NCA trajectory before the next iteration.
+			PRUNE_MODEL : bool optional
+				If true, enforce sparsity of network with pruning during training
+			SPARSITY : float [0,1] optional
+				Target sparsity parameter for network pruning
 			Returns
 			-------
 			None
 		"""
+		self.INJECT_TRUE = INJECT_TRUE
 		
 		#--- Setup training algorithm
 
@@ -410,13 +470,21 @@ class NCA_Trainer(object):
 
 		
 
+
 		if LOSS_WEIGHTS is None:
 			self.LOSS_WEIGHTS = tf.ones(shape=self.x0.shape[0])
 		else:
 			self.LOSS_WEIGHTS = tf.repeat(LOSS_WEIGHTS,self.N_BATCHES)
 		
-		#--- Do training loop
 		
+		
+		
+		#--- Pruning setup
+		if PRUNE_MODEL:
+			self.prune_setup(SPARSITY)
+			self.PRUNE_CALLBACK.on_train_begin()
+		
+		#--- Do training loop
 		best_mean_loss = 100000
 		self.time_of_best_model = 0
 		N_BATCHES = self.N_BATCHES
@@ -425,16 +493,20 @@ class NCA_Trainer(object):
 		print(self.x0_true.shape)
 		for i in tqdm(range(TRAIN_ITERS)):
 			R = np.random.uniform()<UPDATE_RATE
+			if PRUNE_MODEL:
+				self.PRUNE_LOG.on_epoch_begin(epoch=i)
+				self.PRUNE_CALLBACK.on_train_batch_begin(batch=i)
 			x,mean_loss,losses = self.train_step(self.x0,iter_n,REG_COEFF,update_gradients=R,LOSS_FUNC=LOSS_FUNC,NORM_GRADS=NORM_GRADS)#,i%4==0)
 			
 
 			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
 			
 
-			if N_BATCHES>1:
+			if N_BATCHES>1 and self.INJECT_TRUE:
 				self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
 			
-
+			if PRUNE_MODEL:
+				self.PRUNE_CALLBACK.on_epoch_end(batch=i)
 
 			#--- Save model each time it is better than previous best model (and after 10% of training iterations are done)
 			if (mean_loss<best_mean_loss) and (i>TRAIN_ITERS//10):
@@ -574,19 +646,19 @@ class NCA_Trainer_stem_cells(NCA_Trainer):
 		#	current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		#	train_log_dir = "logs/gradient_tape/"+current_time+"/train"
 		#else:
-		train_log_dir = "logs/gradient_tape/"+self.model_filename+"/train"
-		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+
+		train_summary_writer = tf.summary.create_file_writer(self.LOG_DIR)
 		
 		#--- Log the graph structure of the NCA
 		tf.summary.trace_on(graph=True,profiler=True)
 		y = self.NCA_model.perceive(self.x0)
 		with train_summary_writer.as_default():
-			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
+			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=self.LOG_DIR)
 		
 		tf.summary.trace_on(graph=True,profiler=True)
 		x = self.NCA_model(self.x0)
 		with train_summary_writer.as_default():
-			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
+			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=self.LOG_DIR)
 		
 		#--- Log the target image and initial condtions
 		with train_summary_writer.as_default():
@@ -1163,20 +1235,20 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		#	current_time=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 		#	train_log_dir = "logs/gradient_tape/"+current_time+"/train"
 		#else:
-		train_log_dir = "logs/gradient_tape/"+self.model_filename+"/train"
-		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+		
+		train_summary_writer = tf.summary.create_file_writer(self.LOG_DIR)
 		
 		#--- Log the graph structure of the NCA
 		"""
 		tf.summary.trace_on(graph=True,profiler=True)
 		y = self.NCA_model.perceive(self.x0)
 		with train_summary_writer.as_default():
-			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=train_log_dir)
+			tf.summary.trace_export(name="NCA Perception",step=0,profiler_outdir=self.LOG_DIR)
 		
 		tf.summary.trace_on(graph=True,profiler=True)
 		x = self.NCA_model(self.x0)
 		with train_summary_writer.as_default():
-			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=train_log_dir)
+			tf.summary.trace_export(name="NCA full step",step=0,profiler_outdir=self.LOG_DIR)
 		"""
 		#--- Log the target image and initial condtions
 		
