@@ -71,8 +71,8 @@ def loss_sliced_wasserstein_grid(X,Y,num=256):
 		loss : float32 tensor [N_BATCHES]
 
 	"""
-	C = X.shape[-1]
-	B = X.shape[0]
+	#C = X.shape[-1]
+	#B = X.shape[0]
 	H = X.shape[1]
 	W = X.shape[2]
 	V = tf.random.uniform(shape=(H,W,num))
@@ -113,10 +113,10 @@ def loss_sliced_wasserstein_rotate(X,Y,num=24):
 
 	"""
 
-	C = X.shape[-1]
+	#C = X.shape[-1]
 	B = X.shape[0]
-	H = X.shape[1]
-	W = X.shape[2]
+	#H = X.shape[1]
+	#W = X.shape[2]
 	
 	#X_stack = tf.repeat(X,num,axis=0)
 	#Y_stack = tf.repeat(Y,num,axis=0)
@@ -589,3 +589,25 @@ def index_to_generalise_test(index):
     sampling = sampling_rates[indices[1]]
     task = tasks[indices[2]]
     return loss,loss_name,sampling,task
+
+def index_to_model_exploration_parameters(index):
+    loss_funcs = [None,loss_spectral]
+    loss_func_names = ["euclidean","spectral"]
+    tasks = ["heat","mitosis","coral","emoji"]
+    layers = [2,3]
+    kernels = ["ID_LAP","ID_LAP_AV","ID_DIFF_LAP","ID_DIFF","ID_DIFF_AV","ID_DIFF_LAP_AV","ID_AV"]
+    activations=["linear","relu","swish","tanh"]
+    L1 = len(loss_funcs)
+    L2 = len(tasks)
+    L3 = len(layers)
+    L4 = len(kernels)
+    L5 = len(activations)
+    indices = np.unravel_index(index, (L1,L2,L3,L4,L5))
+    LOSS = loss_funcs[indices[0]]
+    LOSS_STR = loss_func_names[indices[0]]
+    TASK = tasks[indices[1]]
+    LAYER = layers[indices[2]]
+    KERNEL= kernels[indices[3]]
+    ACTIVATION= activations[indices[4]]
+    return LOSS,LOSS_STR,TASK,LAYER,KERNEL,ACTIVATION
+    
