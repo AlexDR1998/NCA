@@ -595,7 +595,7 @@ def index_to_model_exploration_parameters(index):
     loss_func_names = ["euclidean","spectral"]
     tasks = ["heat","mitosis","coral","emoji"]
     layers = [2,3]
-    kernels = ["ID_LAP","ID_LAP_AV","ID_DIFF_LAP","ID_DIFF","ID_DIFF_AV","ID_DIFF_LAP_AV","ID_AV"]
+    kernels = ["ID_LAP","ID_LAP_AV","ID_DIFF_LAP","ID_DIFF"]
     activations=["linear","relu","swish","tanh"]
     L1 = len(loss_funcs)
     L2 = len(tasks)
