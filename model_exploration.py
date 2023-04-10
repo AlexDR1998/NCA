@@ -1,5 +1,6 @@
 from NCA.NCA_class import *
-from NCA.NCA_train import *
+from NCA.trainer.NCA_trainer import *
+from NCA.trainer.NCA_PDE_trainer import NCA_PDE_Trainer
 from NCA.NCA_utils import *
 from NCA.GOL_solver import GOL_solver
 import numpy as np
@@ -109,6 +110,8 @@ elif TASK=="mitosis":
     x0[3,40:48,16:24]=0
 
     x0[...,1] = 1-x0[...,0]
+	
+	
     trainer = NCA_PDE_Trainer(ca_readif, x0, F_readif_chem_mitosis, N_BATCHES, PDE_STEPS, step_mul=PDE_SAMPLING, model_filename=FILENAME)
     trainer.train_sequence(TRAIN_ITERS, PDE_SAMPLING, REG_COEFF=0.01, LEARN_RATE=LEARN_RATE, OPTIMIZER=OPTIMIZER, TRAIN_MODE=TRAIN_MODE, NORM_GRADS=True, LOSS_FUNC=LOSS_FUNC)
 

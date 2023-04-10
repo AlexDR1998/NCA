@@ -1,5 +1,6 @@
 from NCA.NCA_class import *
-from NCA.NCA_train import *
+from NCA.trainer.NCA_trainer import *
+from NCA.trainer.NCA_PDE_trainer import NCA_PDE_Trainer
 from NCA.NCA_utils import *
 from NCA.GOL_solver import GOL_solver
 import numpy as np
@@ -24,7 +25,7 @@ OPTIMIZER="Nadam"
 TRAIN_MODE="full"
 LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
 PDE_STEPS=1024//SAMPLING
-FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v4"
+FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v1"
 
 
 
