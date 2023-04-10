@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import scipy as sp
 import datetime
 from NCA.NCA_utils import periodic_padding
 
@@ -17,7 +16,7 @@ class NCA(tf.keras.Model):
 
 	def __init__(self,N_CHANNELS,
 			     FIRE_RATE=0.5,
-			     ADHESION_MASK=None,
+			     ENV_CHANNEL_DATA=None,
 			     ACTIVATION="swish",
 			     LAYERS=2,
 			     OBS_CHANNELS=4,
@@ -34,8 +33,9 @@ class NCA(tf.keras.Model):
 				Number of channels to include - first 4 are visible as RGBA, others are hidden
 			FIRE_RATE : float in [0,1]
 				Controls stochasticity of cell updates, at 1 all cells update every step, at 0 no cells update
-			ADHESION_MASK : boolean array [size,size] optional
-				A binary mask indicating the presence of the adesive micropattern surface
+			ENV_CHANNEL_DATA : float32 array [size,size,E] optional
+				Array encoding information about the environment e.g. presence of mircropatterns or unusual boundary condition shapes 
+                E is the number of channels used to encode envirnonment
 			ACTIVATION : string optional
 				String corresponding to tensorflow activation functions
 			LAYERS : int optional
@@ -60,10 +60,7 @@ class NCA(tf.keras.Model):
 				3 - not yet implemented
 		"""
 
-		if OBS_CHANNELS>N_CHANNELS:
-			print("Too many observable channels, setting OBS_CHANNELS = "+str(N_CHANNELS))
-			OBS_CHANNELS = N_CHANNELS
-
+		 
 		super(NCA,self).__init__()
 		self.N_CHANNELS=N_CHANNELS # RGBA +hidden layers
 		self.OBS_CHANNELS=OBS_CHANNELS
@@ -73,14 +70,19 @@ class NCA(tf.keras.Model):
 		self.PADDING = PADDING
 		self.KERNEL_TYPE=KERNEL_TYPE
 		self.ORDER = ORDER
-
-
-		if ADHESION_MASK is not None:
-			self.ADHESION_MASK=np.repeat(ADHESION_MASK[...,np.newaxis],N_CHANNELS,axis=-1) # Signals where cells can adhere to the micropattern
-			
+		
+		if OBS_CHANNELS>N_CHANNELS:
+			print("Too many observable channels, setting OBS_CHANNELS = "+str(N_CHANNELS))
+			OBS_CHANNELS = N_CHANNELS
+		# Set up environment channels
+		self._ENV_CHANNEL_DATA_raw = np.copy(ENV_CHANNEL_DATA)
+		if ENV_CHANNEL_DATA is not None:
+			#print(ENV_CHANNEL_DATA)
+			ENV_CHANNEL_DATA = np.array(ENV_CHANNEL_DATA)
+			self.set_env_channels(ENV_CHANNEL_DATA)
+			assert self.OBS_CHANNELS + self.ENV_CHANNELS <= self.N_CHANNELS, "Not enough channels"
 		else:
-			self.ADHESION_MASK=None
-			ones = tf.ones(self.OBS_CHANNELS)
+			self.ENV_CHANNEL_DATA = None   
 
 		
 		#-------------------------------------------------------------------------------
@@ -164,8 +166,83 @@ class NCA(tf.keras.Model):
 		elif self.ORDER==2:
 			self.tri_ind = tf.convert_to_tensor(np.array(np.triu_indices(self.N_CHANNELS)).T)
 			self.KERNEL = tf.repeat(kernel,self.N_CHANNELS + (self.N_CHANNELS*(self.N_CHANNELS+1))//2,2)
+		#if ENV_CHANNEL_DATA is not None:
+		#	self(tf.zeros_like(self.ENV_CHANNEL_MASK))
+		#else:
+		
 		self(tf.zeros([1,3,3,self.N_CHANNELS])) # Dummy call to build the model
+		
+		
 		print(self.dense_model.summary())
+	
+		
+	
+	def set_env_channels(self,ENV_CHANNEL_DATA):
+		"""
+		Sets the hard coded NCA channels that encode environmental information
+		
+		If ENV_CHANNEL_DATA is none, instead passes identity values to ENV_CHANNEL_MASK, so that no masking occurs
+
+		Parameters
+		----------
+		ENV_CHANNEL_DATA : float32 array [N_BATCHES,size,size,E] optional
+			Array encoding information about the environment e.g. presence of mircropatterns or unusual boundary condition shapes 
+			E is the number of channels used to encode envirnonment
+
+		Returns
+		-------
+		None.
+		
+		Saves
+		-----
+		
+		self.ENV_CHANNEL_DATA : float32
+
+		"""
+		ENV_CHANNEL_DATA = np.array(ENV_CHANNEL_DATA) # Ensure that lists get converted to numpy arrays
+		N_BATCHES = ENV_CHANNEL_DATA.shape[0]
+		X = ENV_CHANNEL_DATA.shape[1]
+		Y = ENV_CHANNEL_DATA.shape[2]
+		self.ENV_CHANNELS = ENV_CHANNEL_DATA.shape[3]
+		env_mask = np.zeros((N_BATCHES,X,Y,self.N_CHANNELS),dtype="float32")
+		env_mask[...,self.OBS_CHANNELS:self.OBS_CHANNELS+self.ENV_CHANNELS] = 1.0
+		self.ENV_CHANNEL_MASK = tf.convert_to_tensor(env_mask,dtype=tf.float32)
+		
+		
+		_env = tf.convert_to_tensor(ENV_CHANNEL_DATA,dtype=tf.float32)
+		self.ENV_CHANNEL_DATA = tf.concat((tf.zeros((N_BATCHES,X,Y,self.OBS_CHANNELS),dtype=tf.float32),
+								       _env,
+									   tf.zeros((N_BATCHES,X,Y,self.N_CHANNELS - self.ENV_CHANNELS - self.OBS_CHANNELS),dtype=tf.float32)),
+								      axis=-1)
+		
+		
+		#self.ENV_INDS = [[x] for x in range(self.OBS_CHANNELS,self.OBS_CHANNELS+ENV_CHANNELS.shape[-1])]
+		
+		#print("ENV_CHANNEL_PATTERN shape: "+str(self.ENV_CHANNEL_DATA.shape))
+		#print("ENV_CHANNEL_MASK shape: "+str(self.ENV_CHANNEL_MASK.shape))
+	def env_channel_callback(self,X):
+		"""
+		
+
+		Parameters
+		----------
+		X : float32 tensor [batches,size,size,N_CHANNELS]
+			
+
+		Returns
+		-------
+		x_masked : float32 tensor [batches,size,size,N_CHANNELS]
+			channels OBS_CHANNELS - OBS_CHANNELS+E are set to environment mask
+
+		"""
+		
+		#--- Optional batch masking here for when during training N_BATCHES is overwritten to account for multiple timesteps
+		B_x = X.shape[0]
+		B_env=self.ENV_CHANNEL_DATA.shape[0]
+		B = min(B_x,B_env)
+		
+		return (1-self.ENV_CHANNEL_MASK[:B])*X[:B] + self.ENV_CHANNEL_MASK[:B] * self.ENV_CHANNEL_DATA[:B]
+		
 		
 	def upscale_kernel(self):
 		"""
@@ -268,7 +345,12 @@ class NCA(tf.keras.Model):
 				new state space of NCA, with (stochastically masked) update applied across all channels and batches
 		"""
 		#print(x.shape)
-
+		if fire_rate is not None:
+			self.FIRE_RATE = fire_rate
+		#if self.ENV_CHANNELS is not None:
+		#	self.env_channel_callback(x)
+		#tf.print(x[0,...,0])
+		
 		#--- If non-zero padding option given, pad x
 		if self.PADDING=="periodic":
 			x = periodic_padding(x,2)
@@ -277,32 +359,24 @@ class NCA(tf.keras.Model):
 		
 
 
-		#--- If x was padded, remove the padding effect from y
-		#if self.PADDING!="zero":
-		#	y = self.perceive(x)[:,1:-1,1:-1]
-		#else:
-		#
-
 		y = self.perceive(x)
-
-
-
 		dx = (self.dense_model(y)*step_size)
 
 
-		if fire_rate is None:
-			fire_rate = self.FIRE_RATE
-		update_mask = tf.random.uniform(tf.shape(x[:,:,:,:1]),minval=0.0,maxval=1.0) <= fire_rate
+
+		update_mask = tf.random.uniform(tf.shape(x[:,:,:,:1]),minval=0.0,maxval=1.0) <= self.FIRE_RATE
 
 		x_new = x + dx*tf.cast(update_mask,tf.float32)
 		
 		if self.PADDING!="zero":
-			return x_new[:,2:-2,2:-2]
-		else:
-			return x_new
+			x_new = x_new[:,2:-2,2:-2]
+		
+
+			
+		return x_new
 
 
-	def run_init(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
+	def run_init(self,x0,T,N_BATCHES=1,ENV_CHANNELS=None):
 		"""
 			Helper function that initialises some stuff needed for running NCA trajectories.
 			
@@ -319,47 +393,30 @@ class NCA(tf.keras.Model):
 			-------
 			trajectory : float32 array [T,batches,size,size,channels]
 				array of zeros where trajectory will be written to
-			_mask : float32 tensor [batvhes,size,size,channels]
-				mask to indicate which channel contains information about adhesive surfaces or other environmental constants
 		"""
-		_mask = None
+		#print("X0 shape: "+str(x0.shape))
 		#--- Initialise stuff
 		TARGET_SIZE = x0.shape[1]
 		x0 = x0[0:N_BATCHES] # If initial condition is too wide in batches dimension, reduce it
 		trajectory = np.zeros((T,N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS),dtype="float32")
-		#print(trajectory.shape)
-		#print(x0.shape)
+
 		#--- Setup initial conditions
 		if x0.shape[-1]<self.N_CHANNELS: # If x0 has less channels than the NCA, pad zeros to x0
 			z0 = tf.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
 			x0 = tf.concat((x0,z0),axis=-1)
+			
 		assert trajectory[0].shape == x0.shape
 		
-		
-
-		#--- Setup the adhesion and decay mask, if provided
-		if ADHESION_MASK is not None:	
-			self.ADHESION_MASK=np.repeat(ADHESION_MASK[...,np.newaxis],self.N_CHANNELS,axis=-1)
-			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
-				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
-			#ones = np.ones(5)
-			
-		if self.ADHESION_MASK is not None:
-			if (self.ADHESION_MASK.shape[0]==1) and (N_BATCHES>1):
-				self.ADHESION_MASK=np.repeat(self.ADHESION_MASK,N_BATCHES,axis=0)
-			_mask = tf.zeros((x0.shape),dtype="float32")
-			_mask[...,self.OBS_CHANNELS]=1
-			x0 = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*x0
-			#ones = np.ones(5)
-			self.ADHESION_MASK = tf.convert_to_tensor(self.ADHESION_MASK)
-		#if self.ADHESION_MASK is None:
-			#ones = np.ones(4)
+		if ENV_CHANNELS is not None:
+			self.setup_env_channels(ENV_CHANNELS)
+		if self.ENV_CHANNEL_DATA is not None:
+			x0 = self.env_channel_callback(x0)
 			
 		trajectory[0] = x0
-		return trajectory,_mask
+		return trajectory
 
 
-	def run(self,x0,T,N_BATCHES=1,ADHESION_MASK=None,PADDING=None):
+	def run(self,x0,T,N_BATCHES=1,ENV_CHANNELS=None,PADDING=None):
 		"""
 			Iterates self.call several times to perform a NCA simulation.
 			
@@ -371,7 +428,7 @@ class NCA(tf.keras.Model):
 				number of timesteps to run for		
 			N_BATCHES : int=1
 				number of batches of simulations to run in parallel
-			ADHESION_MASK : optional boolean array [size,size]
+			ENV_CHANNELS : optional boolean array [size,size]
 				Mask representing presence of environmental factors (i.e. adhesive surfaces for cells)
 			PADDING : optional string
 				Overwrites self.PADDING if provided
@@ -382,23 +439,25 @@ class NCA(tf.keras.Model):
 				time series resulting from running NCA for T steps starting at x0
 		"""
 
-		#--- Set up variables
+		#--- Optionally overwrite padding and environment variables at runtime
 		if PADDING is not None:
 			self.PADDING=PADDING
 
-		trajectory,_mask=self.run_init(x0,T,N_BATCHES=N_BATCHES,ADHESION_MASK=ADHESION_MASK)
+
+
+		trajectory=self.run_init(x0,T,N_BATCHES=N_BATCHES,ENV_CHANNELS=ENV_CHANNELS)
 		
 		#--- Run T iterations of NCA
 		for t in range(1,T):
 			trajectory[t] = self.call(trajectory[t-1])
-			if self.ADHESION_MASK is not None:
-				trajectory[t] = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*trajectory[t]
+			if self.ENV_CHANNEL_DATA is not None:
+				trajectory[t] = self.env_channel_callback(trajectory[t])
 		trajectory = tf.convert_to_tensor(trajectory, dtype=tf.float32)
 
 		return trajectory
 
 
-	def run_detailed(self,x0,T,N_BATCHES=1,ADHESION_MASK=None):
+	def run_detailed(self,x0,T,N_BATCHES=1,ENV_CHANNELS=None):
 		"""
 			Iterates self.call several times to perform a NCA simulation.
 			Also tracks and returns trajectories of increments for each kernel
@@ -422,7 +481,7 @@ class NCA(tf.keras.Model):
 
 		#--- Initialise trajectory variables
 		K = self.KERNEL.shape[3]
-		trajectory,_mask=self.run_init(x0,T,N_BATCHES=N_BATCHES,ADHESION_MASK=ADHESION_MASK)
+		trajectory=self.run_init(x0,T,N_BATCHES=N_BATCHES,ENV_CHANNELS=ENV_CHANNELS)
 		TARGET_SIZE = x0.shape[1]
 		k_trajectory = np.zeros((T,N_BATCHES,K,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS))
 		k_trajectory_dx = np.zeros((T,N_BATCHES,K,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS))
@@ -463,6 +522,8 @@ class NCA(tf.keras.Model):
 					new state space of NCA, with (stochastically masked) update applied across all channels and batches
 			"""
 			#print(x.shape)
+			if self.ENV_CHANNELS is not None:
+				x = self.env_channel_callback(x)
 			y = partial_perception(x,i)
 			#print(y.shape)
 			dx = self.dense_model(y)*step_size
@@ -479,8 +540,7 @@ class NCA(tf.keras.Model):
 			trajectory[t] = self.call(trajectory[t-1])
 			for k in range(K):
 				k_trajectory[t,:,k],k_trajectory_dx[t,:,k] = partial_call(trajectory[t-1],k)
-			if self.ADHESION_MASK is not None:
-				trajectory[t] = _mask*self.ADHESION_MASK[:N_BATCHES] + (1-_mask)*trajectory[t]
+			
 		trajectory = tf.convert_to_tensor(trajectory, dtype=tf.float32)
 		return trajectory,k_trajectory,k_trajectory_dx
 
@@ -490,8 +550,8 @@ class NCA(tf.keras.Model):
 				"LAYERS":self.N_layers,
 				"KERNEL_TYPE":self.KERNEL_TYPE,
 				"ORDER":self.ORDER,
-				"ACTIVATION":self.ACTIVATION}
-				#"ADHESION_MASK":self.ADHESION_MASK,
+				"ACTIVATION":self.ACTIVATION,
+				"ENV_CHANNEL_DATA":self._ENV_CHANNEL_DATA_raw}
 				#"dense_model":self.dense_model}
 	
 	@classmethod
