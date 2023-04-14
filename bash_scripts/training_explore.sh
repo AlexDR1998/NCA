@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N nadam_versatility_test
+#$ -N channel_sampling_sweep
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
@@ -14,5 +14,5 @@
 module load anaconda
 source activate nca_tensorflow
 
-python ./model_versatility_test.py $1
+python ./emoji_channels_time_sampling.py $1
 source deactivate

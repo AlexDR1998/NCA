@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N nadam_versatility_test
+#$ -N channel_sampling_sweep
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd

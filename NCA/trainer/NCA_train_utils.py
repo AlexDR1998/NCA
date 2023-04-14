@@ -545,7 +545,7 @@ def index_to_mitosis_parameters(index):
 				  loss_spectral_euclidean,
 				  None]
 	loss_func_name =["spectral",
-					 "bhattacharyya",
+					 "bhattachryya",
 					 "spectral_euclidean",
 					 "euclidean"]
 	sampling_rates = [1,2,4,8,16]
@@ -573,13 +573,13 @@ def index_to_generalise_test(index):
 					   "spectral",
 					   "hellinger",
 					   "kl_divergence"]
-    #sampling_rates = [1,2,4,8,16]
-    #tasks = ["heat",
-    #        "mitosis",
-    #        "coral",
-	#		"gol"]
-    sampling_rates = [16,32,48,64]
-    tasks=["emoji"]
+    sampling_rates = [1,2,4,8,16]
+    tasks = ["heat",
+            "mitosis",
+            "coral",
+			"gol"]
+    #sampling_rates = [16,32,48,64]
+    #tasks=["emoji"]
     L1 = len(loss_funcs)
     L2 = len(sampling_rates)
     L3 = len(tasks)
@@ -611,3 +611,13 @@ def index_to_model_exploration_parameters(index):
     ACTIVATION= activations[indices[4]]
     return LOSS,LOSS_STR,TASK,LAYER,KERNEL,ACTIVATION
     
+
+def index_to_channel_sample(index):
+	channels = [4,6,8,10,12,14,16,32]
+	samplings = [1,4,8,16,32,64,128]
+	L1 = len(channels)
+	L2 = len(samplings)
+	indices = np.unravel_index(index,(L1,L2))
+	N_CHANNELS = channels[indices[0]]
+	SAMPLING = samplings[indices[1]]
+	return N_CHANNELS,SAMPLING

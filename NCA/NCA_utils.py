@@ -59,7 +59,40 @@ def load_loss_log(summary_dir):
             losses.append(t)
   return steps,losses
 
+def load_trajectory_log(summary_dir):
+  """
+    Returns the NCA states at target times
 
+    Parameters
+    ----------
+    summary_dir : string
+      The directory where the tensorboard log is stored
+
+    Returns
+    -------
+      steps : array ints
+        timesteps
+      losses : array float32
+        losses at timesteps
+  """
+  def my_summary_iterator(path):
+    for r in tf_record.tf_record_iterator(path):
+      yield event_pb2.Event.FromString(r)
+  steps = []
+  trajectory =[]
+  
+  
+  
+  for filename in os.listdir(summary_dir):
+    if filename!="plugins":
+      path = os.path.join(summary_dir, filename)
+      for event in my_summary_iterator(path):
+        for value in event.summary.value:
+          if value.tag=="Trained NCA dynamics RGBA":
+            t = tensor_util.MakeNdarray(value.tensor)
+            steps.append(event.step)
+            trajectory.append(t)
+  return steps,trajectory
 
 def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsample=2):
   """

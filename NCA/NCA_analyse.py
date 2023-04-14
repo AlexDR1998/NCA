@@ -6,7 +6,7 @@ import numpy as np
 from NCA.NCA_utils import *
 from tqdm import tqdm
 import tensorflow as tf 
-from NCA_analyse_utils import *
+from NCA.NCA_analyse_utils import *
 """
 	Class for interpreting trained NCA models.
 """
