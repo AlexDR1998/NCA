@@ -614,7 +614,7 @@ def index_to_model_exploration_parameters(index):
 
 def index_to_channel_sample(index):
 	channels = [4,6,8,10,12,14,16,32]
-	samplings = [1,4,8,16,32,64,128]
+	samplings = [1,2,4,8,16,32,64,128]
 	L1 = len(channels)
 	L2 = len(samplings)
 	indices = np.unravel_index(index,(L1,L2))
