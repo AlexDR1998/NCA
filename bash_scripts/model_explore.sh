@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N model_variations
+#$ -N model_symmetries
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
@@ -14,5 +14,5 @@
 module load anaconda
 source activate nca_tensorflow
 
-python ./model_exploration.py $1
+python ./emoji_symmetry.py $1
 source deactivate

@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N model_variations
+#$ -N model_symmetries
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd

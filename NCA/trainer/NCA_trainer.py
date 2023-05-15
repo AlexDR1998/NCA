@@ -7,7 +7,7 @@ from tqdm import tqdm
 import datetime
 from NCA.trainer.NCA_train_utils import *
 from time import time
-
+from scipy.ndimage import rotate as sp_rotate
 
 
 class NCA_Trainer(object):
@@ -88,13 +88,15 @@ class NCA_Trainer(object):
 		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
 		self.data = data
 		
-		#plt.imshow(self.x0[0,...,:3])
-		#plt.show()
-		#plt.imshow(self.x0[0,...,3:6])
-		#plt.show()
 		self.x0_true = np.copy(self.x0)
 		self.x0 = tf.convert_to_tensor(self.x0)
 		self.PRUNE = False
+		# data augmentation flags
+		self.FLIP = False
+		self.SHIFT = False
+		self.NOISE = False
+		self.ROTATE= False
+		self.PAD = False
 		self.setup_tb_log_sequence()
 		print("---Shapes of NCA_Trainer variables---")
 		print("data: "+str(self.data.shape))
@@ -550,6 +552,19 @@ class NCA_Trainer(object):
 			loss = np.hstack((mean_loss,losses))
 			
 			
+			if i%(self.T*2)==0 and i > 1:
+				need_to_reset = True
+				if self.FLIP:
+					self.data_flip_augment(reset=need_to_reset)
+					need_to_reset = False
+				if self.ROTATE:
+					self.data_rotate_augment(reset=need_to_reset)
+					need_to_reset = False
+				if self.SHIFT:
+					self.data_shift_augment(reset=need_to_reset)
+					need_to_reset = False
+				if self.NOISE:
+					self.data_noise_augment()
 			#--- Write to log
 			self.tb_training_loop_log_sequence(loss,x,i)
 		print("-------- Training complete ---------")
@@ -561,23 +576,22 @@ class NCA_Trainer(object):
 		#if model_filename is not None:
 		#	ca.save_wrapper(model_filename)
 
-	def data_pad_augment(self,AUGMENTATION,WIDTH):
+	def data_pad_augment(self,WIDTH):
 		"""
-			Augments training data by padding with extra zeros and randomly translating I.C - target pairs
-			Should result in NCA that ignores simulation boundary
+			Augments training data by padding with extra zeros
 
 			Parameters
 			----------
-			AUGMENTATION : int
-				Number of copies of data to augment - multiplies number of batches
+			
 			WIDTH : int
 				How wide to pad data with zeros
 
 		"""
 		
 		#--- Reshape x0 and target to be [T-1,batch,size,size,channels]
+		self.PAD = True
 		self.x0 = self.x0.numpy()
-		
+		self.WIDTH = WIDTH
 		x0 = self.x0.reshape((self.T-1,self.N_BATCHES,self.x0.shape[1],self.x0.shape[2],-1))
 		target = self.target.reshape((self.T-1,self.N_BATCHES,self.target.shape[1],self.target.shape[2],-1))
 		
@@ -585,26 +599,56 @@ class NCA_Trainer(object):
 		padwidth = ((0,0),(0,0),(WIDTH,WIDTH),(WIDTH,WIDTH),(0,0))
 		x0 = np.pad(x0,padwidth)
 		target = np.pad(target,padwidth)
-
-		#--- Duplicate by AUGMENTATION along batches axis
-		x0 = np.repeat(x0,AUGMENTATION,axis=1)
-		target = np.repeat(target,AUGMENTATION,axis=1)
-
-		#--- Randomly offset each image
-		shifts = np.random.randint(low=-WIDTH,high=WIDTH,size=(x0.shape[1],2))
+		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
+		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.x0 = tf.convert_to_tensor(self.x0)
+		
+	def data_shift_augment(self,reset=True):
+		"""
+		
+		Randomly translates I.C - target pairs
+		Should result in NCA that ignores simulation boundary
+		
+		Doesn't augment first 1/2 batches, but uses them as reference when redoing augmentation
+		
+		"""
+		self.SHIFT = True
+		self.x0 = self.x0.numpy()
+		#--- Reshape input
+		x0 = self.x0.reshape((self.T-1,self.N_BATCHES,self.x0.shape[1],self.x0.shape[2],-1))
+		target = self.target.reshape((self.T-1,self.N_BATCHES,self.target.shape[1],self.target.shape[2],-1))
+		
+		
+		#--- If data has already been shifted, undo that operation first
+# 		if hasattr(self,"shifts"):
+# 			for t in range(x0.shape[0]):
+# 				for b in range(x0.shape[1]):
+# 					x0[t,b] = np.roll(x0[t,b],shift= -self.shifts[b],axis=(0,1))
+# 					target[t,b] = np.roll(target[t,b],shift= -self.shifts[b],axis=(0,1))
+			
+				
+		
+		#--- Reset augmented batches to unaugmented values - use 1 instead of 0 as batch 0 has true state injection
+		
+		if reset:
+			x0[:,2:] = x0[:,1:2]
+			target[:,2:]=target[:,1:2]
+		
+		#--- Randomly offset each batch of images
+		self.shifts = np.random.randint(low=-self.WIDTH,high=self.WIDTH,size=(x0.shape[1],2))
 		for t in range(x0.shape[0]):
-			for b in range(x0.shape[1]):
-				x0[t,b] = np.roll(x0[t,b],shift=shifts[b],axis=(0,1))
-				target[t,b] = np.roll(target[t,b],shift=shifts[b],axis=(0,1))
+			for b in range(2,x0.shape[1]):
+				x0[t,b] = np.roll(x0[t,b],shift=self.shifts[b],axis=(0,1))
+				target[t,b] = np.roll(target[t,b],shift=self.shifts[b],axis=(0,1))
 
 		#--- Reshape back to [(T-1)*batch,size,size,channels]
 		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
 		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
 		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
-		self.N_BATCHES*=AUGMENTATION
 		self.x0 = tf.convert_to_tensor(self.x0)
 
-	def data_noise_augment(self,AMOUNT=0.001):
+	def data_noise_augment(self,AMOUNT=0.001,mode="full"):
 		"""
 			Augments training data by adding noise to the I.C. scaled by AMOUNT
 
@@ -615,8 +659,113 @@ class NCA_Trainer(object):
 
 
 		"""
-		noise = np.random.uniform(size=self.x0.shape)
-		x0_noisy = AMOUNT*noise + (1-AMOUNT)*self.x0
-		self.x0 = x0_noisy
+		self.NOISE = True
+		self.x0 = self.x0.numpy()
+		#--- Reshape input
+		x0 = self.x0.reshape((self.T-1,self.N_BATCHES,self.x0.shape[1],self.x0.shape[2],-1))
+		#target = self.target.reshape((self.T-1,self.N_BATCHES,self.target.shape[1],self.target.shape[2],-1))
+		
+		
 
 
+		if hasattr(self, "x0_denoise"):
+			x0[:,0] = self.x0_denoise
+			#target[:,0] = self.target_denoise
+		else:
+			self.x0_denoise = x0[:,0]
+			#self.target_denoise= target[:,0]
+		#--- add noise to each augmented batch
+		
+		x0 = AMOUNT*np.random.uniform(size=x0.shape) + (1-AMOUNT)*x0
+		#target = AMOUNT*np.random.uniform(size=target.shape) + (1-AMOUNT)*target
+		
+
+		#--- Reshape back to [(T-1)*batch,size,size,channels]
+		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		#self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
+		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.x0 = tf.convert_to_tensor(self.x0)
+	
+	def data_rotate_augment(self,reset=True):
+		"""
+			Augments training data by randomly rotating
+
+
+
+		"""
+		self.ROTATE = True
+		self.x0 = self.x0.numpy()
+		#--- Reshape input
+		x0 = self.x0.reshape((self.T-1,self.N_BATCHES,self.x0.shape[1],self.x0.shape[2],-1))
+		target = self.target.reshape((self.T-1,self.N_BATCHES,self.target.shape[1],self.target.shape[2],-1))
+		
+		
+		#--- If data has already been rotated, undo that operation first - DON'T NEED TO
+# 		if self.angles is not None:
+# 			for t in range(x0.shape[0]):
+# 				for b in range(x0.shape[1]):
+# 					x0[t,b] = sp_rotate(x0[t,b],angle= -self.angles[b],axes=(0,1),reshape = False, mode = "nearest",order=1)
+# 					target[t,b] = sp_rotate(target[t,b],angle= -self.angles[b],axes=(0,1),reshape = False, mode = "nearest",order=1)
+			
+		
+		#--- Reset augmented batches to unaugmented values - use 1 instead of 0 as batch 0 has true state injection
+		if reset:
+			x0[:,2:] = x0[:,1:2]
+			target[:,2:]=target[:,1:2]
+		
+		#--- Randomly rotate each batch of images
+		self.angles = np.random.randint(low=0,high=360,size=(x0.shape[1]))
+		for t in range(x0.shape[0]):
+			for b in range(2,x0.shape[1]):
+				x0[t,b] = sp_rotate(x0[t,b],angle=self.angles[b],axes=(0,1),reshape = False, mode = "nearest",order=1)
+				target[t,b] = sp_rotate(target[t,b],angle=self.angles[b],axes=(0,1),reshape = False, mode = "nearest",order=1)
+
+				
+		#--- Reshape back to [(T-1)*batch,size,size,channels]
+		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
+		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.x0 = tf.convert_to_tensor(self.x0)
+	def data_flip_augment(self,reset=True):
+		"""
+		
+
+		Parameters
+		----------
+		reset : TYPE, optional
+			DESCRIPTION. The default is True.
+
+		Returns
+		-------
+		None.
+
+		"""
+		self.FLIP = True
+		self.x0 = self.x0.numpy()
+		#--- Reshape input
+		x0 = self.x0.reshape((self.T-1,self.N_BATCHES,self.x0.shape[1],self.x0.shape[2],-1))
+		target = self.target.reshape((self.T-1,self.N_BATCHES,self.target.shape[1],self.target.shape[2],-1))
+		
+		
+		
+		#--- Reset augmented batches to unaugmented values - use 1 instead of 0 as batch 0 has true state injection
+		if reset:
+			x0[:,2:] = x0[:,1:2]
+			target[:,2:]=target[:,1:2]
+		
+		#--- Randomly flip each batch of images
+		flip_axes = np.random.randint(2,size=x0.shape[1])
+		do_flip = np.random.randint(2,size=x0.shape[1])
+		
+		for b in range(2,x0.shape[1]):
+			if do_flip[b]==1:
+				for t in range(x0.shape[0]):
+					x0[t,b] = np.flip(x0[t,b],axis=flip_axes[b])
+					target[t,b] = np.flip(target[t,b],axis=flip_axes[b])
+
+				
+		#--- Reshape back to [(T-1)*batch,size,size,channels]
+		self.x0 = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
+		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
+		self.x0 = tf.convert_to_tensor(self.x0)

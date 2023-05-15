@@ -611,7 +611,16 @@ def index_to_model_exploration_parameters(index):
     ACTIVATION= activations[indices[4]]
     return LOSS,LOSS_STR,TASK,LAYER,KERNEL,ACTIVATION
     
-
+def index_to_emoji_symmetry_parameters(index):
+	kernels = ["ID_LAP_AV","ID_DIFF_LAP"]
+	tasks=["normal","rotated_data","rotation_task","translation_task"]
+	L1 = len(kernels)
+	L2 = len(tasks)
+	indices = np.unravel_index(index,(L1,L2))
+	KERNEL = kernels[indices[0]]
+	TASK = tasks[indices[1]]
+	return KERNEL,TASK
+	
 def index_to_channel_sample(index):
 	channels = [4,6,8,10,12,14,16,32]
 	samplings = [1,2,4,8,16,32,64,128]
