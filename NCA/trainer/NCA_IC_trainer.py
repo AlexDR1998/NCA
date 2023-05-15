@@ -200,5 +200,6 @@ class NCA_IC_Trainer(NCA_Trainer):
 		print("-------- Training complete ---------")
 		#--- Write resulting animation to tensorboard			
 		#self.tb_write_result(iter_n)
+		return self.x0,x
 
 	
