@@ -46,7 +46,7 @@ if TASK=="normal":
 	
 elif TASK=="rotated_data":
 	data = load_emoji_sequence(["alien_monster.png","microbe.png","rooster_1f413.png","rooster_1f413.png"],downsample=2)
-	WIDTH = 10
+	WIDTH = 5
 	padwidth = ((0,0),(0,0),(WIDTH,WIDTH),(WIDTH,WIDTH),(0,0))
 	data = np.pad(data,padwidth)
 	ca = NCA(N_CHANNELS_EMOJI,
@@ -56,7 +56,7 @@ elif TASK=="rotated_data":
 			 KERNEL_TYPE=KERNEL_TYPE,
 			 PADDING="zero")
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=FILENAME)
-	trainer.data_pad_augment(10)
+	trainer.data_pad_augment(5)
 	trainer.data_flip_augment()
 	trainer.data_rotate_augment()
 	trainer.data_shift_augment()
