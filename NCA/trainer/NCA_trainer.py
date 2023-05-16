@@ -648,7 +648,7 @@ class NCA_Trainer(object):
 		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
 		self.x0 = tf.convert_to_tensor(self.x0)
 
-	def data_noise_augment(self,AMOUNT=0.001,mode="full"):
+	def data_noise_augment(self,AMOUNT=0.0001,mode="full"):
 		"""
 			Augments training data by adding noise to the I.C. scaled by AMOUNT
 

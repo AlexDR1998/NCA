@@ -40,7 +40,7 @@ if TASK=="normal":
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=FILENAME)
 	trainer.data_pad_augment(10)
 	trainer.data_shift_augment()
-	trainer.data_noise_augment(0.001)
+	trainer.data_noise_augment(0.0001)
 	print(ca)
 	trainer.train_sequence(TRAIN_ITERS,EMOJI_SAMPLING,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,LEARN_RATE=LEARN_RATE)
 	
@@ -60,7 +60,7 @@ elif TASK=="rotated_data":
 	trainer.data_flip_augment()
 	trainer.data_rotate_augment()
 	trainer.data_shift_augment()
-	trainer.data_noise_augment(0.001)
+	trainer.data_noise_augment(0.0001)
 	print(ca)
 	trainer.train_sequence(TRAIN_ITERS,EMOJI_SAMPLING,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,LEARN_RATE=LEARN_RATE)
 	
@@ -82,7 +82,7 @@ elif TASK=="rotation_task":
 	trainer.data_pad_augment(10)
 	trainer.data_rotate_augment()
 	trainer.data_shift_augment()
-	trainer.data_noise_augment(0.001)
+	trainer.data_noise_augment(0.0001)
 	print(ca)
 	trainer.train_sequence(TRAIN_ITERS,EMOJI_SAMPLING,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,LEARN_RATE=LEARN_RATE)
 	
@@ -102,6 +102,6 @@ elif TASK=="translation_task":
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=FILENAME)
 	trainer.data_pad_augment(0)
 	trainer.data_rotate_augment()
-	trainer.data_noise_augment(0.001)
+	trainer.data_noise_augment(0.0001)
 	print(ca)
 	trainer.train_sequence(TRAIN_ITERS,EMOJI_SAMPLING,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,LEARN_RATE=LEARN_RATE)
