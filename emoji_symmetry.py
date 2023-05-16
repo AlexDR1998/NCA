@@ -23,7 +23,7 @@ KERNEL_TYPE,TASK= index_to_emoji_symmetry_parameters(index)
 EMOJI_SAMPLING = 32
 ACTIVATION="relu"
 LOSS_FUNC=None # euclidean
-FILENAME = "model_exploration/Nadam_euclidean_emoji_"+TASK+"_2_layer_"+KERNEL_TYPE+"_relu_v1"
+FILENAME = "model_exploration/Nadam_euclidean_emoji_"+TASK+"_2_layer_"+KERNEL_TYPE+"_relu_v2"
 #FILENAME = "model_exploration/Nadam_euclidean_emoji_32_channels_32_sampling_"+KERNEL_TYPE
 
 
