@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N model_symmetries
+#$ -N fixed_fft_run
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
