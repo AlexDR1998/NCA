@@ -12,10 +12,10 @@ import sys
 """
 
 index=int(sys.argv[1])-1
-N_CHANNELS_EMOJI = 32
+N_CHANNELS_EMOJI = 16
 N_CHANNELS_PDE = 8
 N_CHANNELS_GOL = 16
-N_BATCHES = 4
+N_BATCHES = 8
 OBS_CHANNELS_PDE=2
 TRAIN_ITERS = 8000
 LEARN_RATE = 1e-3
@@ -23,9 +23,9 @@ BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across 
 NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
 TRAIN_MODE="full"
-LOSS_FUNC,LOSS_FUNC_STRING,TASK,LAYERS,KERNEL_TYPE,ACTIVATION = index_to_model_exploration_parameters(index)
+LOSS_FUNC,LOSS_FUNC_STRING,TASK,LAYERS,KERNEL_TYPE,ACTIVATION = index_to_model_exploration_parameters_spectral(index)
 PDE_SAMPLING = 8
-EMOJI_SAMPLING = 32
+EMOJI_SAMPLING = 64
 PDE_STEPS=1024//PDE_SAMPLING
 FILENAME = "model_exploration/Nadam_"+LOSS_FUNC_STRING+"_"+TASK+"_"+str(LAYERS)+"_layer_"+KERNEL_TYPE+"_"+ACTIVATION+"_"+str(EMOJI_SAMPLING)+"_sampling_v1"
 #FILENAME = "model_exploration/Nadam_euclidean_emoji_32_channels_32_sampling_"+KERNEL_TYPE
@@ -182,7 +182,9 @@ elif TASK=="emoji":
 			 KERNEL_TYPE=KERNEL_TYPE,
 			 PADDING="zero")
 	trainer = NCA_Trainer(ca,data,N_BATCHES,model_filename=FILENAME)
-	trainer.data_pad_augment(2,10)
+	trainer.data_pad_augment(10)
+	#trainer.data_rotate_augment()
+	trainer.data_shift_augment()
 	trainer.data_noise_augment(0.001)
 	print(ca)
 	trainer.train_sequence(TRAIN_ITERS,EMOJI_SAMPLING,LOSS_FUNC=LOSS_FUNC,OPTIMIZER=OPTIMIZER,LEARN_RATE=LEARN_RATE)

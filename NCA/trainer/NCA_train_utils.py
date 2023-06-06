@@ -619,6 +619,29 @@ def index_to_model_exploration_parameters(index):
     ACTIVATION= activations[indices[4]]
     return LOSS,LOSS_STR,TASK,LAYER,KERNEL,ACTIVATION
     
+
+def index_to_model_exploration_parameters_spectral(index):
+	#same as above function, but only spectral 2 layer emojis, as fft loss was bugged
+	LOSS = loss_spectral
+	LOSS_STR = "spectral"
+	TASK = "emoji"
+	LAYER = 2
+	kernels = ["ID_LAP","ID_LAP_AV","ID_DIFF_LAP","ID_DIFF"]
+	activations=["linear","relu","swish","tanh"]
+	#L1 = len(loss_funcs)
+	#L2 = len(tasks)
+	#L3 = len(layers)
+	L1 = len(kernels)
+	L2 = len(activations)
+	indices = np.unravel_index(index, (L1,L2))
+	#LOSS = loss_funcs[indices[0]]
+	#LOSS_STR = loss_func_names[indices[0]]
+	#TASK = tasks[indices[1]]
+	#LAYER = layers[indices[2]]
+	KERNEL= kernels[indices[0]]
+	ACTIVATION= activations[indices[1]]
+	return LOSS,LOSS_STR,TASK,LAYER,KERNEL,ACTIVATION
+
 def index_to_emoji_symmetry_parameters(index):
 	kernels = ["ID_LAP_AV","ID_DIFF_LAP"]
 	tasks=["normal","rotated_data","rotation_task","translation_task"]
