@@ -596,7 +596,7 @@ def index_to_generalise_test_2():
 	loss = loss_spectral
 	loss_name = "spectral"
 	sampling = 8
-	task = ["coral"]
+	task = "coral"
 	return loss,loss_name,sampling,task
 def index_to_model_exploration_parameters(index):
     loss_funcs = [None,loss_spectral]
