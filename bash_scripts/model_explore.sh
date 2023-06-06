@@ -14,5 +14,5 @@
 module load anaconda
 source activate nca_tensorflow
 
-python ./emoji_symmetry.py $1
+python ./model_versatility_test.py $1
 source deactivate

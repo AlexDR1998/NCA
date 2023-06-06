@@ -22,10 +22,11 @@ LEARN_RATE = 1e-3
 BATCH_SIZE=64 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
+ACTIVATION ="swish"
 TRAIN_MODE="full"
-LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test(index)
+LOSS_FUNC,LOSS_FUNC_STRING,SAMPLING,TASK = index_to_generalise_test_2()
 PDE_STEPS=1024//SAMPLING
-FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v1"
+FILENAME = "trainer_validation/Nadam_"+LOSS_FUNC_STRING+"_sampling_"+str(SAMPLING)+"_"+TASK+"_v3"
 
 
 
@@ -61,7 +62,7 @@ if TASK=="heat":
 				  OBS_CHANNELS=OBS_CHANNELS_PDE,
 				  REGULARIZER=NCA_WEIGHT_REG,
 				  KERNEL_TYPE="ID_LAP",
-				  ACTIVATION="relu")
+				  ACTIVATION=ACTIVATION)
     print(ca_heat)    
     x0 = np.random.uniform(size=(N_BATCHES,64,64,OBS_CHANNELS_PDE)).astype(np.float32)
     x0[0,24:40,24:40]=1
@@ -83,7 +84,7 @@ elif TASK=="mitosis":
     			   OBS_CHANNELS=2,
     			   REGULARIZER=NCA_WEIGHT_REG,
     			   KERNEL_TYPE="ID_LAP",
-				   ACTIVATION="relu")
+				   ACTIVATION=ACTIVATION)
 
     print(ca_readif)
 
@@ -115,7 +116,7 @@ elif TASK=="coral":
     			   OBS_CHANNELS=2,
     			   REGULARIZER=NCA_WEIGHT_REG,
     			   KERNEL_TYPE="ID_LAP",
-				   ACTIVATION="relu")
+				   ACTIVATION=ACTIVATION)
 
     print(ca_readif)
 
@@ -152,7 +153,7 @@ elif TASK=="gol":
 				 REGULARIZER=0,
 				 OBS_CHANNELS=1,
 				 KERNEL_TYPE="GOL",
-				 ACTIVATION="relu")
+				 ACTIVATION=ACTIVATION)
 	trainer = NCA_Trainer(ca_gol,
 					      data, 
 						  N_BATCHES, 
@@ -168,7 +169,7 @@ elif TASK=="emoji":
 	data = load_emoji_sequence(["alien_monster.png","butterfly.png","rooster_1f413.png","rooster_1f413.png"],downsample=2)
 	print(data)
 	ca = NCA(N_CHANNELS_EMOJI,
-		     ACTIVATION="relu",
+		     ACTIVATION=ACTIVATION,
 			 REGULARIZER=NCA_WEIGHT_REG,
 			 LAYERS=2,
 			 KERNEL_TYPE="ID_LAP_AV",

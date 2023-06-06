@@ -144,7 +144,7 @@ def loss_sliced_wasserstein_rotate(X,Y,num=24):
 	diff_2 = tf.math.reduce_mean((X_sort_2-Y_sort_2)**2,axis=[1,2])
 
 	return diff_1+diff_2
-#@tf.function
+@tf.function
 def loss_spectral(X,Y):
 	"""
 		Implementation of euclidean distance of FFTs of X and Y
@@ -591,6 +591,13 @@ def index_to_generalise_test(index):
     task = tasks[indices[2]]
     return loss,loss_name,sampling,task
 
+def index_to_generalise_test_2():
+	#Rerunning some of index_tp_generalise_test, as fft loss was bugged
+	loss = loss_spectral
+	loss_name = "spectral"
+	sampling = 8
+	task = ["coral"]
+	return loss,loss_name,sampling,task
 def index_to_model_exploration_parameters(index):
     loss_funcs = [None,loss_spectral]
     loss_func_names = ["euclidean","spectral"]
