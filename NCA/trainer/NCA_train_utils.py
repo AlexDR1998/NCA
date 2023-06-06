@@ -144,7 +144,7 @@ def loss_sliced_wasserstein_rotate(X,Y,num=24):
 	diff_2 = tf.math.reduce_mean((X_sort_2-Y_sort_2)**2,axis=[1,2])
 
 	return diff_1+diff_2
-@tf.function
+#@tf.function
 def loss_spectral(X,Y):
 	"""
 		Implementation of euclidean distance of FFTs of X and Y
@@ -161,13 +161,14 @@ def loss_spectral(X,Y):
 		loss : float32 tensor [N_BATCHES]
 
 	"""
-	X = tf.einsum("bxyc->xybc",X)
-	Y = tf.einsum("bxyc->xybc",Y)
 
-	X_fft = tf.signal.rfft2d(X)
-	Y_fft = tf.signal.rfft2d(Y)
+	X_ = tf.einsum("bxyc->bcxy",X)
+	Y_ = tf.einsum("bxyc->bcxy",Y)
 
-	return tf.math.abs(tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[0,1,3]))
+	X_fft = tf.math.abs(tf.signal.rfft2d(X_))
+	Y_fft = tf.math.abs(tf.signal.rfft2d(Y_))
+
+	return tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[1,2,3])
 
 @tf.function
 def loss_spectral_euclidean(X,Y):
