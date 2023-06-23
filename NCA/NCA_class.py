@@ -17,7 +17,7 @@ class NCA(tf.keras.Model):
 	def __init__(self,N_CHANNELS,
 			     FIRE_RATE=0.5,
 			     ENV_CHANNEL_DATA=None,
-			     ACTIVATION="swish",
+			     ACTIVATION="relu",
 			     LAYERS=2,
 			     OBS_CHANNELS=4,
 			     REGULARIZER=0.001,
