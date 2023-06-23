@@ -6,6 +6,7 @@ import tensorflow_model_optimization.sparsity.keras as tfmot
 from tqdm import tqdm
 import datetime
 from NCA.trainer.NCA_train_utils import *
+from NCA.trainer.NCA_loss_functions import *
 from time import time
 from scipy.ndimage import rotate as sp_rotate
 
@@ -17,7 +18,7 @@ class NCA_Trainer(object):
 	
 	"""
 
-	def __init__(self,NCA_model,data,N_BATCHES,model_filename=None,RGB_mode="RGBA",directory="models/"):
+	def __init__(self,NCA_model,data,N_BATCHES,model_filename=None,RGB_mode="RGBA",CYCLIC=False,directory="models/"):
 		"""
 			Initialiser method
 
@@ -34,6 +35,8 @@ class NCA_Trainer(object):
 				log at :	'logs/gradient_tape/model_filename/train'
 				model at : 	'models/model_filename'
 				if None, sets model_filename to current time
+			CYCLIC : boolean optional
+				Flag for if data is cyclic, i.e. include X_N -> X_0 in training
 			RGB_mode : string
 				Expects "RGBA" "RGB" or "RGB-A"
 				Defines how to log image channels to tensorboard
@@ -50,7 +53,7 @@ class NCA_Trainer(object):
 		data = data.astype("float32") # Cast data to float32 for tensorflow
 		self.NCA_model = NCA_model
 		self.N_BATCHES = N_BATCHES
-		
+		self.CYCLIC = CYCLIC
 		self.N_CHANNELS = self.NCA_model.N_CHANNELS
 		self.OBS_CHANNELS=self.NCA_model.OBS_CHANNELS
 		if self.OBS_CHANNELS==3:
@@ -529,10 +532,15 @@ class NCA_Trainer(object):
 
 		
 			self.x0 = self.x0.numpy()
-
-			self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
+			if self.CYCLIC:
+				#self.x0 = np.roll(x,N_BATCHES,axis=0)
+				self.x0[N_BATCHES:] = x[:-N_BATCHES]
+				self.x0[:N_BATCHES] = x[-N_BATCHES:]
+			else:
+				self.x0[N_BATCHES:] = x[:-N_BATCHES] # updates each initial condition to be final condition of previous chunk of timesteps
 			if N_BATCHES>1 and self.INJECT_TRUE:
-				self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
+				#self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
+				self.x0[::N_BATCHES] = self.x0_true[::N_BATCHES] # update one batch to contain the true initial conditions
 			self.x0 = tf.convert_to_tensor(self.x0)
 
 
