@@ -3,7 +3,6 @@ from NCA.trainer.NCA_loss_functions import *
 from NCA.trainer.NCA_trainer import *
 from NCA.trainer.NCA_PDE_trainer import NCA_PDE_Trainer
 from NCA.NCA_utils import *
-from NCA.GOL_solver import GOL_solver
 import numpy as np
 import os 
 import sys
