@@ -1,4 +1,5 @@
 from NCA.NCA_class import *
+from NCA.trainer.NCA_loss_functions import *
 from NCA.trainer.NCA_trainer import *
 from NCA.trainer.NCA_PDE_trainer import NCA_PDE_Trainer
 from NCA.NCA_utils import *
