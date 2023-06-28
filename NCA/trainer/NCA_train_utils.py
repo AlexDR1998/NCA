@@ -132,12 +132,9 @@ def index_to_mitosis_parameters(index):
 	"""
 	loss_funcs = [loss_spectral,
 				  loss_bhattacharyya_modified,
-				  hellinger,
+				  loss_hellinger_modified,
 				  None]
-	loss_func_name =["spectral",
-					 "bhattachryya",
-					 "hellinger",
-					 "euclidean"]
+	loss_func_name = ["spectral","bhattachryya","hellinger","euclidean"]
 	sampling_rates = [1,2,4,6,8,12,16,24,32]
 	
 	L1 = len(loss_funcs)
