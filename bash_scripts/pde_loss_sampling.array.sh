@@ -6,6 +6,6 @@
 #$ -l h_rt=47:00:00
 
 #$ -pe gpu-a100 1
-#$ -l h_vmem=64G
+#$ -l h_vmem=32G
 
 bash pde_loss_sampling.sh $SGE_TASK_ID

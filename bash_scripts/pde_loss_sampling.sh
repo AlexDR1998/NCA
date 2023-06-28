@@ -6,7 +6,7 @@
 #$ -l h_rt=47:00:00
 
 #$ -pe pe gpu-a100 1
-#$ -l h_vmem=64G
+#$ -l h_vmem=32G
 
 
 . /etc/profile.d/modules.sh
