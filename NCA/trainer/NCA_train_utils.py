@@ -136,15 +136,16 @@ def index_to_mitosis_parameters(index):
 				  None]
 	loss_func_name = ["spectral","bhattachryya","hellinger","euclidean"]
 	sampling_rates = [1,2,4,6,8,12,16,24,32]
-	
+	instance = [0,1,2,3]
 	L1 = len(loss_funcs)
 	L2 = len(sampling_rates)
-	
-	indices = np.unravel_index(index,(L1,L2))
+	L3 = len(instance)
+	indices = np.unravel_index(index,(L1,L2,L3))
 	loss = loss_funcs[indices[0]]
 	loss_name = loss_func_name[indices[0]]
 	sampling = sampling_rates[indices[1]]
-	return loss,loss_name,sampling
+	i = instance[indices[2]]
+	return loss,loss_name,sampling,i
 
 def index_to_generalise_test(index):
     loss_funcs = [None,
