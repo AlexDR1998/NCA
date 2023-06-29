@@ -138,6 +138,7 @@ def loss_sliced_wasserstein_rotate(X,Y,num=24):
 	diff_2 = tf.math.reduce_mean((X_sort_2-Y_sort_2)**2,axis=[1,2])
 
 	return diff_1+diff_2
+
 @tf.function
 def loss_spectral(X,Y):
 	"""
@@ -265,6 +266,7 @@ def loss_bhattacharyya_euclidean(X,Y):
     b_loss = loss_bhattacharyya_modified(X, Y)
     e_loss = tf.math.reduce_euclidean_norm((X-Y),axis=[1,2,3])
     return b_loss+e_loss
+
 @tf.function
 def loss_hellinger(X,Y):
 	"""
@@ -293,6 +295,7 @@ def loss_hellinger(X,Y):
 	
 	H_bc = 0.70710678118*tf.math.reduce_euclidean_norm(sqrt_diff,axis=[1,2])
 	return tf.math.reduce_mean(H_bc,axis=-1)
+
 @tf.function
 def loss_hellinger_modified(X,Y):
 	"""

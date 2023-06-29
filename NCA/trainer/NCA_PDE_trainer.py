@@ -431,9 +431,9 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			self.x0 = tf.convert_to_tensor(self.x0)
 
 
-			#--- Save model each time it is better than previous best model (and after 1% of training iterations are done)
+			#--- Save model each time it is better than previous best model (and after 5% of training iterations are done)
 			
-			if (mean_loss<best_mean_loss) and (mean_loss < previous_mean_loss and (i>10)):
+			if (mean_loss<best_mean_loss) and (mean_loss < previous_mean_loss and (i>TRAIN_ITERS//20)):
 				if self.model_filename is not None:
 					self.NCA_model.save_wrapper(self.model_filename,self.directory)
 					tqdm.write("--- Model saved at "+str(i)+" epochs ---")
