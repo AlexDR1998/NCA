@@ -21,7 +21,7 @@ BATCH_SIZE=32 # Split gradient updates into batches - computing gradient across 
 NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
 KERNEL_TYPE="ID_LAP"
-ACTIVATION = "relu"
+ACTIVATION = "swish"
 LOSS_FUNC,LOSS_FUNC_STRING,PDE_SAMPLING,i = index_to_mitosis_parameters(index)	
 PDE_STEPS=1024//PDE_SAMPLING
 
@@ -82,7 +82,7 @@ def F_readif_chem_coral(X,Xdx,Xdy,Xdd,D=[0.1,0.05],f=0.06230,k=0.06258):
 
 #---------------------------------- Coral patterning experiment ---------------------------------
 
-FILENAME = "trainer_validation/Nadam_coral_relu_8ch_ID_LAP_"+LOSS_FUNC_STRING+"_"+str(PDE_SAMPLING)+"_sampling_instance_"+str(i)
+FILENAME = "trainer_validation/Nadam_coral_"+ACTIVATION+"_8ch_ID_LAP_"+LOSS_FUNC_STRING+"_"+str(PDE_SAMPLING)+"_sampling_instance_"+str(i)
 ca_readif =NCA(N_CHANNELS_PDE,
   			   FIRE_RATE=1,              
   			   OBS_CHANNELS=2,
