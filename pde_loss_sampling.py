@@ -21,7 +21,7 @@ BATCH_SIZE=32 # Split gradient updates into batches - computing gradient across 
 NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
 KERNEL_TYPE="ID_LAP"
-ACTIVATION = "swish"
+ACTIVATION = "relu"
 LOSS_FUNC,LOSS_FUNC_STRING,PDE_SAMPLING,i = index_to_mitosis_parameters(index)	
 PDE_STEPS=1024//PDE_SAMPLING
 
