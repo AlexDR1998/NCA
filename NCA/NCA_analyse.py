@@ -1,7 +1,6 @@
 import matplotlib.pylab as pl
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import glob
 import numpy as np 
 from NCA.NCA_utils import *
 from tqdm import tqdm

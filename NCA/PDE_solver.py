@@ -1,9 +1,9 @@
 import numpy as np
-import scipy as sp
+#import scipy as sp
 import tensorflow as tf
 from tqdm import tqdm
 from NCA.NCA_utils import periodic_padding
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 """
 A class for the simulation of arbitrary systems of time dependent PDEs with 2 spatial dimensions
 
