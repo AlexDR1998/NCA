@@ -3,16 +3,16 @@
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
-#$ -l h_rt=47:00:00
+#$ -l h_rt=16:00:00
 
-#$ -pe pe gpu-a100 1
-#$ -l h_vmem=32G
+#$ -pe gpu-a100 2
+#$ -l h_vmem=80G
 
 
 . /etc/profile.d/modules.sh
 
 module load anaconda
-source activate nca_tensorflow
+source activate tf_a100
 
 python ./pde_loss_sampling.py $1
 source deactivate
