@@ -3,7 +3,7 @@
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
-#$ -l h_rt=16:00:00
+#$ -l h_rt=40:00:00
 
 #$ -pe gpu-a100 2
 #$ -l h_vmem=80G
