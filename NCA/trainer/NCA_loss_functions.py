@@ -1,8 +1,11 @@
 import numpy as np 
 import tensorflow as tf
+from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.applications.vgg16 import preprocess_input
 #import tensorflow_addons as tfa
 
-
+vgg_style = VGG16(weights="imagenet", include_top=False, input_shape=[150,150,3])
+vgg_style.trainable = False ## Not trainable weights
 #------ Loss functions -------
 @tf.function
 def loss_sliced_wasserstein_channels(X,Y,num=64):
@@ -87,6 +90,35 @@ def loss_sliced_wasserstein_grid(X,Y,num=256):
 	#print(tf.math.reduce_sum(X_proj,axis=1))
 
 
+
+
+def my_preprocess(x):
+	x = tf.clip_by_value(x, 0, 1)
+	return preprocess_input(x*255)
+@tf.function
+def loss_vgg(X,Y):
+	"""
+	Transform each channel through VGG16, compare euclidean distance of second last layer activations
+
+	Parameters
+	----------
+	X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
+		Data to compute loss on
+
+	Returns
+	-------
+	loss : float32 tensor [N_BATCHES]
+		
+
+	"""
+	_X = tf.image.resize(X,(150,150))[...,:3]
+	_Y = tf.image.resize(Y,(150,150))[...,:3]
+	## Loading VGG16 model
+	
+	
+	X_vgg = vgg_style(my_preprocess(_X))
+	Y_vgg = vgg_style(my_preprocess(_Y))
+	return tf.math.reduce_mean(tf.abs(X_vgg-Y_vgg),axis=[1,2,3])
 # @tf.function
 # def loss_sliced_wasserstein_rotate(X,Y,num=24):
 # 	"""
@@ -164,6 +196,31 @@ def loss_spectral(X,Y):
 	Y_fft = tf.math.abs(tf.signal.rfft2d(Y_))
 
 	return tf.math.reduce_euclidean_norm((X_fft-Y_fft),axis=[1,2,3])
+
+
+@tf.function
+def loss_euclidean(X,Y):
+	"""
+		Implementation of euclidean distance 
+	
+		Parameters
+		----------
+		X,Y : float32 tensor [N_BATCHES,X,Y,N_CHANNELS]
+			Data to compute loss on
+		
+	
+		Returns
+		-------
+		loss : float32 tensor [N_BATCHES]
+	
+	"""
+	return tf.math.reduce_euclidean_norm((X-Y),axis=[1,2,3])
+
+	
+
+
+
+
 
 @tf.function
 def loss_spectral_euclidean(X,Y):
