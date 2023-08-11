@@ -532,6 +532,8 @@ class NCA_Trainer(object):
 
 		
 			self.x0 = self.x0.numpy()
+			
+
 			if self.CYCLIC:
 				#self.x0 = np.roll(x,N_BATCHES,axis=0)
 				self.x0[N_BATCHES:] = x[:-N_BATCHES]
@@ -542,7 +544,8 @@ class NCA_Trainer(object):
 				#self.x0[::N_BATCHES][1:] = self.x0_true[::N_BATCHES][1:] # update one batch to contain the true initial conditions
 				self.x0[::N_BATCHES] = self.x0_true[::N_BATCHES] # update one batch to contain the true initial conditions
 			self.x0 = tf.convert_to_tensor(self.x0)
-
+			if self.NOISE:
+				self.data_noise_augment()
 
 			if PRUNE_MODEL:
 				self.PRUNE_CALLBACK.on_epoch_end(batch=i)
@@ -676,11 +679,11 @@ class NCA_Trainer(object):
 		
 
 
-		if hasattr(self, "x0_denoise"):
-			x0[:,0] = self.x0_denoise
+		#if hasattr(self, "x0_denoise"):
+		#	x0[:,0] = self.x0_denoise
 			#target[:,0] = self.target_denoise
-		else:
-			self.x0_denoise = x0[:,0]
+		#else:
+		#	self.x0_denoise = x0[:,0]
 			#self.target_denoise= target[:,0]
 		#--- add noise to each augmented batch
 		
@@ -693,6 +696,7 @@ class NCA_Trainer(object):
 		#self.target = target.reshape((-1,target.shape[2],target.shape[3],target.shape[4]))
 		self.x0_true = x0.reshape((-1,x0.shape[2],x0.shape[3],x0.shape[4]))
 		self.x0 = tf.convert_to_tensor(self.x0)
+	
 	
 	def data_rotate_augment(self,reset=True):
 		"""
