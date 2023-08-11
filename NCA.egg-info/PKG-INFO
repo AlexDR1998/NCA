@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: NCA
+Version: 1.0.0
+Summary: Neural Cellular Automata
+Home-page: UNKNOWN
+Author: Alex Richardson
+Author-email: <alexander.richardson@gmail.com>
+License: UNKNOWN
+Description: Efficiently learn cellular automata rules that give desired emergent spatio-temporal patterning
+Platform: UNKNOWN

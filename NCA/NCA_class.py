@@ -405,8 +405,7 @@ class NCA(tf.keras.Model):
 			z0 = tf.zeros((N_BATCHES,TARGET_SIZE,TARGET_SIZE,self.N_CHANNELS-x0.shape[-1]),dtype="float32")
 			x0 = tf.concat((x0,z0),axis=-1)
 
-		#print(x0.shape)
-		#print(trajectory[0].shape)
+		
 		assert trajectory[0].shape == x0.shape
 		
 		if ENV_CHANNELS is not None:
