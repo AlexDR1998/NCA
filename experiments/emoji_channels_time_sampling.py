@@ -2,6 +2,7 @@ from NCA.NCA_class import *
 from NCA.trainer.NCA_trainer import *
 from NCA.NCA_utils import *
 import sys
+os.chdir("..")
 
 index=int(sys.argv[1])-1
 N_BATCHES = 4
