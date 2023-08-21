@@ -4,6 +4,14 @@ Neural Cellular Automata (NCA). Used primarily for modelling human embryonic ste
 # How to use
 See the demo jupyter notebook, it includes details of how to actually use this code on a range of problems
 
+## Requirements
+tensorflow
+numpy
+scipy
+scikit-image (for file IO)
+tqdm
+matplotlib
+
 ## Code structure
 The code is structured as followed.
 - Fundamental NCA code
