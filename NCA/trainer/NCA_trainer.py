@@ -679,11 +679,11 @@ class NCA_Trainer(object):
 		
 
 
-		#if hasattr(self, "x0_denoise"):
-		#	x0[:,0] = self.x0_denoise
+		if hasattr(self, "x0_denoise"):
+			x0[:,0] = self.x0_denoise
 			#target[:,0] = self.target_denoise
-		#else:
-		#	self.x0_denoise = x0[:,0]
+		else:
+			self.x0_denoise = x0[:,0]
 			#self.target_denoise= target[:,0]
 		#--- add noise to each augmented batch
 		
