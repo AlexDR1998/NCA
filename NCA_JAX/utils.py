@@ -37,7 +37,7 @@ def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsa
 	
 		Returns
 		-------
-		images : float32 array [T,1,C,size,size]
+		images : float32 array [1,T,C,size,size]
 			Timesteps of T RGB/RGBA images. Dummy index of 1 for number of batches
 	"""
 	images = []
@@ -46,8 +46,11 @@ def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsa
 		if crop_square:
 			s= min(im.shape[0],im.shape[1])
 			im = im[:s,:s]
-		im = im[np.newaxis] / 255.0
+		#im = im[np.newaxis] / 255.0
+		im = im/255.0
 		images.append(im)
 	data = np.array(images)
-	data = np.einsum("tbxyc->tbcxy",data)
+	data = data[np.newaxis]
+	data = np.einsum("btxyc->btcxy",data)
 	return data
+
