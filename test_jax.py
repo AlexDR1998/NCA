@@ -18,14 +18,13 @@ t = 64
 iters=1000
 data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=1)
 # class data_augmenter_subclass(DataAugmenter):
-# 	#Redefine how data is pre-processed before training
-# 	def data_init(self):
-# 		data = self.return_saved_data()
-# 		data = self.duplicate_batches(data, 4)
-# 		data = self.pad(data, 10)
-# 		data = self.shift(data, 10)
-# 		self.save_data(data)
-# 		return None
+# 	 #Redefine how data is pre-processed before training
+# 	 def data_init(self):
+# 		  data = self.return_saved_data()
+# 		  data = self.duplicate_batches(data, 4)
+# 		  data = self.pad(data, 10) 		
+# 		  self.save_data(data)
+# 		  return None
 # 	
 # 	# Redefine how data is processed during NCA training
 # 	def data_callback(self, x, y, i):
@@ -50,8 +49,8 @@ nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="emoji_jax_eddie_test_1",
-				  BOUNDARY_MASK=mask)
+				  model_filename="emoji_jax_eddie_test_1")#,
+				  #BOUNDARY_MASK=mask)
 opt.train(t,iters,optimiser=optimiser)
 
 

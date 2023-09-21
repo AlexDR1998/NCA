@@ -200,7 +200,9 @@ class NCA_Trainer(object):
 			def compute_loss(nca_diff,nca_static,x,y,t,key):
 				# Gradient and values of loss function computed here
 				_nca = eqx.combine(nca_diff,nca_static)
-				nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),axis_name="N"),axis_name="batch")
+				nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),
+									    axis_name="N"),
+					           axis_name="batch")
 				
 				
 				reg_log = 0

@@ -31,7 +31,7 @@ class DataAugmenter(object):
 		"""
 		data = self.return_saved_data()
 		data = self.duplicate_batches(data, 4)
-		data = self.pad(data, 5)
+		data = self.pad(data, 10)
 		#data = self.shift(data, 10)
 		self.save_data(data)
 		return None
@@ -59,7 +59,7 @@ class DataAugmenter(object):
 			Final states
 
 		"""
-		am=5
+		am=10
 		
 		if hasattr(self,"PREVIOUS_KEY"):
 			x = self.unshift(x, am, self.PREVIOUS_KEY)
