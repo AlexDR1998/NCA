@@ -228,13 +228,13 @@ class NCA_Trainer(object):
 		# Initialise data and split into x and y
 		self.DATA_AUGMENTER.data_init()
 		x,y = self.DATA_AUGMENTER.split_x_y(1)
-		
-		pmake_step = jax.pmap(make_step,in_axes=(None,0,0,None,0,0),out_axes=(None,0,0),axis_name="batch")
+		t = jnp.ones(x.shape[0])*t
+		pmake_step = jax.pmap(make_step,in_axes=(None,0,0,0,0,0),out_axes=(None,0,0),axis_name="batch")
 
 		
 		for i in tqdm(range(iters)):
 			key = jax.random.fold_in(key,i)
-			key_array = key_array_gen(key,(x.shape[0]))
+			key_array = key_array_gen(key,(x.shape[0],))
 			nca,opt_state,(mean_loss,(x,losses)) = pmake_step(nca, x, y, t, opt_state, key_array)
 			
 			if self.IS_LOGGING:
