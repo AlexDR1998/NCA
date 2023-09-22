@@ -1,8 +1,6 @@
 import tensorflow as tf
 tf.config.experimental.set_visible_devices([], "GPU") # Force tensorflow not to use GPU, as it's only logging data
 import numpy as np
-#import io
-#import matplotlib.pyplot as plt
 from NCA_JAX.NCA_visualiser import *
 
 

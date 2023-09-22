@@ -2,8 +2,6 @@ import jax
 import jax.numpy as jnp
 import equinox as eqx
 import time
-#from jax.tree_util import pytree
-import pickle
 from pathlib import Path
 from typing import Union
 

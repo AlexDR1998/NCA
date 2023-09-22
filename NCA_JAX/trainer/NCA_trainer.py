@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-from jax.experimental import mesh_utils
 import optax
 import equinox as eqx
 import datetime
@@ -65,7 +64,6 @@ class NCA_Trainer(object):
 		self.OBS_CHANNELS = data.shape[2]
 		self.SHARDING = SHARDING
 		
-		
 		# Set up data and data augmenter class
 		self.DATA_AUGMENTER = DATA_AUGMENTER(data,self.CHANNELS-self.OBS_CHANNELS)
 		self.data = self.DATA_AUGMENTER.return_true_data()
@@ -87,8 +85,6 @@ class NCA_Trainer(object):
 		self.MODEL_PATH = directory+self.model_filename
 		print("Saving model to: "+self.MODEL_PATH)
 		
-		
-		
 	@eqx.filter_jit	
 	def loss_func(self,x,y):
 		"""
@@ -108,8 +104,6 @@ class NCA_Trainer(object):
 		"""
 		x_obs = x[:,:,:self.OBS_CHANNELS]
 		y_obs = y[:,:,:self.OBS_CHANNELS]
-		#x_obs = x[:self.OBS_CHANNELS]
-		#y_obs = y[:self.OBS_CHANNELS]
 		return loss.euclidean(x_obs,y_obs)
 	
 	@eqx.filter_jit
@@ -131,35 +125,8 @@ class NCA_Trainer(object):
 		"""
 		if not full:
 			x = x[:,:,:self.OBS_CHANNELS]
-			#x = x[:self.OBS_CHANNELS]
 		return jnp.mean(jnp.abs(x)+jnp.abs(x-1)-1)
 	
-	
-	
-	def grad_norm(self,grad):
-		"""
-		Normalises each vector/matrix in grad 
-
-		Parameters
-		----------
-		grad : NCA/pytree
-
-		Returns
-		-------
-		grad : NCA/pytree
-
-		"""
-		w_where = lambda l: l.weight
-		b_where = lambda l: l.bias
-		w1 = grad.layers[3].weight/(jnp.linalg.norm(grad.layers[3].weight)+1e-8)
-		w2 = grad.layers[5].weight/(jnp.linalg.norm(grad.layers[5].weight)+1e-8)
-		b2 = grad.layers[5].bias/(jnp.linalg.norm(grad.layers[5].bias)+1e-8)
-		grad.layers[3] = eqx.tree_at(w_where,grad.layers[3],w1)
-		grad.layers[5] = eqx.tree_at(w_where,grad.layers[5],w2)
-		grad.layers[5] = eqx.tree_at(b_where,grad.layers[5],b2)
-		return grad
-		
-		
 	def train(self,t,iters,optimiser=None,STATE_REGULARISER=1.0,key=jax.random.PRNGKey(int(time.time()))):
 		"""
 		Perform t steps of NCA on x, compare output to y, compute loss and gradients of loss wrt model parameters, and update parameters.
@@ -219,13 +186,9 @@ class NCA_Trainer(object):
 			def compute_loss(nca_diff,nca_static,x,y,t,key):
 				# Gradient and values of loss function computed here
 				_nca = eqx.combine(nca_diff,nca_static)
-				#nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),
-				#					    axis_name="N"),
-				#	           axis_name="batch")
 				nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),
 									    axis_name="N"),
 					           axis_name="batch")
-				
 				reg_log = 0
 				
 				# Structuring this as function and lax.scan speeds up jit compile a lot
@@ -235,8 +198,6 @@ class NCA_Trainer(object):
 					key = jax.random.fold_in(key,j)
 					key_array = key_array_gen(key,(x.shape[0],x.shape[1]))
 					x = nca(x,key_array)
-					#x = nca(x,self.BOUNDARY_CALLBACK,key)
-					
 					reg_log+=self.intermediate_reg(x)
 					return (key,x,reg_log),None
 				#def cond_func(carry):
@@ -249,16 +210,12 @@ class NCA_Trainer(object):
 				losses = self.loss_func(x, y)
 				mean_loss = jnp.mean(losses)+STATE_REGULARISER*(reg_log/t)
 				return mean_loss,(x,losses)
-				
-				#loss = self.loss_func(x,y) + STATE_REGULARISER*(reg_log/t)
-				#return loss, x
 			
 			nca_diff,nca_static = nca.partition()
 			loss_x,grads = compute_loss(nca_diff,nca_static,x,y,t,key)
 			updates,opt_state = self.OPTIMISER.update(grads, opt_state, nca_diff)
 			nca = eqx.apply_updates(nca,updates)
 			return nca,opt_state,loss_x#loss_x[0],loss_x[1]
-		
 		
 		nca = self.NCA_model
 		nca_diff,nca_static = nca.partition()
@@ -272,29 +229,13 @@ class NCA_Trainer(object):
 			self.OPTIMISER = optimiser
 		opt_state = self.OPTIMISER.init(nca_diff)
 		
-		# Initialise data and split into x and y
+		# Initialise data and split into x and y - if sharding, DATA_AUGMENTER handles it
 		self.DATA_AUGMENTER.data_init(self.SHARDING)
 		x,y = self.DATA_AUGMENTER.split_x_y(1)
-		
-		# TODO: add compatibility for training on multiple GPUs - use pmap over batch axis
-		
-		
-		#print(x.shape)
-		#num_devices = len(jax.devices())
-		#print(jax.devices())
-		#devices = jax.sharding.Mesh(jax.devices(),["batches"])
-		#print(devices)
-		#shard = jax.sharding.PositionalSharding(devices)
-		#x,y = jax.device_put((x,y),shard)
-		#shard = jax.sharding.PmapSharding(x.shape,sharded_dim=0)
-		#print(shard)
-		
-
 		
 		for i in tqdm(range(iters)):
 			key = jax.random.fold_in(key,i)
 			nca,opt_state,(mean_loss,(x,losses)) = make_step(nca, x, y, t, opt_state,key)
-			#nca,opt_state,losses,x = batched_vmake_step(nca, x, y, t, opt_state,key)
 			if self.IS_LOGGING:
 				self.LOGGER.tb_training_loop_log_sequence(losses, x, i, nca)
 			# Do data augmentation update

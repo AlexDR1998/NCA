@@ -23,9 +23,6 @@ def plot_to_image(figure):
 	return image
 
 
-
-
-
 def plot_weight_matrices(nca):
 	"""
 	Plots heatmaps of NCA layer weights

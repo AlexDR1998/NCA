@@ -3,11 +3,13 @@ import jax
 import equinox as eqx
 
 class NCA_boundary(object):
+	"""
+		Callable object that forces intermediate NCA states to be fixed to boundary condition at specified channels
+	"""
+	
 	
 	def __init__(self,mask = None):
 		"""
-		
-
 		Parameters
 		----------
 		mask : float32 [MASK_CHANNELS,WIDTH,HEIGHT]
@@ -17,7 +19,6 @@ class NCA_boundary(object):
 		None.
 
 		"""
-		
 
 		self.MASK = mask
 		
