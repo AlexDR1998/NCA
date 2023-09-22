@@ -49,7 +49,7 @@ nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="emoji_jax_eddie_test_1")#,
+				  model_filename="jax_macmigs_gpu_test_1")#,
 				  #BOUNDARY_MASK=mask)
 opt.train(t,iters,optimiser=optimiser)
 
