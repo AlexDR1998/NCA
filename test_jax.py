@@ -1,5 +1,5 @@
 from NCA_JAX.model.NCA_model import NCA
-from NCA_JAX.trainer.NCA_trainer_multicore import *
+from NCA_JAX.trainer.NCA_trainer import *
 from NCA_JAX.utils import load_emoji_sequence
 from NCA_JAX.NCA_visualiser import *
 import optax
