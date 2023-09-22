@@ -16,7 +16,7 @@ import jax.numpy as jnp
 CHANNELS = 16
 t = 64
 iters=1000
-data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=1)
+data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=2)
 # class data_augmenter_subclass(DataAugmenter):
 # 	 #Redefine how data is pre-processed before training
 # 	 def data_init(self):
@@ -49,7 +49,8 @@ nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="jax_macmigs_gpu_test_1")#,
+				  model_filename="jax_macmigs_gpu_test_2",
+				  SHARDING=4)
 				  #BOUNDARY_MASK=mask)
 opt.train(t,iters,optimiser=optimiser)
 

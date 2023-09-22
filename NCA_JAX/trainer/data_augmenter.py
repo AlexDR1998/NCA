@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import jax
 import time
 import equinox as eqx
+from jax.experimental import mesh_utils
 
 class DataAugmenter(object):
 	def __init__(self,data_true,hidden_channels=0):
@@ -24,15 +25,22 @@ class DataAugmenter(object):
 		self.data_true = data_true
 		self.data_saved = data_true
 
-	def data_init(self):
+	def data_init(self,SHARDING = None):
 		"""
 		Chain together various data augmentations to perform at intialisation of NCA training
 
 		"""
 		data = self.return_saved_data()
-		data = self.duplicate_batches(data, 4)
-		data = self.pad(data, 10)
-		#data = self.shift(data, 10)
+		if SHARDING is not None:
+			data = self.duplicate_batches(data, SHARDING)
+			data = self.pad(data,10)
+			shard = jax.sharding.PositionalSharding(mesh_utils.create_device_mesh((SHARDING,1,1,1,1)))
+			data = jax.device_put(data,shard)
+			jax.debug.visualize_array_sharding(data[:,0,0,0])
+		else:	
+			data = self.duplicate_batches(data, 4)
+			data = self.pad(data, 10)
+		
 		self.save_data(data)
 		return None
 		

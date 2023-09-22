@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+from jax.experimental import mesh_utils
 import optax
 import equinox as eqx
 import datetime
@@ -16,12 +17,20 @@ class NCA_Trainer(object):
 	General class for training NCA model to data trajectories
 	"""
 	
-	def __init__(self,NCA_model,data,model_filename=None,DATA_AUGMENTER = DataAugmenter, BOUNDARY_MASK = None, directory="models/"):
+	def __init__(self,
+			     NCA_model,
+				 data,
+				 model_filename=None,
+				 DATA_AUGMENTER = DataAugmenter,
+				 BOUNDARY_MASK = None, 
+				 SHARDING = None, 
+				 directory="models/"):
 		"""
 		
 
 		Parameters
 		----------
+		
 		NCA_model : object callable - (float32 array [N_CHANNELS,_,_],PRNGKey) -> (float32 array [N_CHANNELS,_,_])
 			the NCA object to train
 			
@@ -33,6 +42,14 @@ class NCA_Trainer(object):
 			log at :	'logs/gradient_tape/model_filename/train'
 			model at : 	'models/model_filename'
 			if None, sets model_filename to current time
+		
+		DATA_AUGMENTER : object, optional
+			DataAugmenter object. Has data_init and data_callback methods that can be re-written as needed. The default is DataAugmenter.
+		BOUNDARY_MASK : float32 [N_BOUNDARY_CHANNELS,WIDTH,HEIGHT], optional
+			Set of channels to keep fixed, encoding boundary conditions. The default is None.
+		SHARDING : int, optional
+			How many parallel GPUs to shard data across?. The default is None.
+		
 		directory : str
 			Name of directory where all models get stored, defaults to 'models/'
 
@@ -46,6 +63,8 @@ class NCA_Trainer(object):
 		# Set up variables 
 		self.CHANNELS = self.NCA_model.N_CHANNELS
 		self.OBS_CHANNELS = data.shape[2]
+		self.SHARDING = SHARDING
+		
 		
 		# Set up data and data augmenter class
 		self.DATA_AUGMENTER = DATA_AUGMENTER(data,self.CHANNELS-self.OBS_CHANNELS)
@@ -203,7 +222,7 @@ class NCA_Trainer(object):
 				#nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),
 				#					    axis_name="N"),
 				#	           axis_name="batch")
-				nca = jax.pmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),
+				nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),
 									    axis_name="N"),
 					           axis_name="batch")
 				
@@ -254,10 +273,11 @@ class NCA_Trainer(object):
 		opt_state = self.OPTIMISER.init(nca_diff)
 		
 		# Initialise data and split into x and y
-		self.DATA_AUGMENTER.data_init()
+		self.DATA_AUGMENTER.data_init(self.SHARDING)
 		x,y = self.DATA_AUGMENTER.split_x_y(1)
 		
 		# TODO: add compatibility for training on multiple GPUs - use pmap over batch axis
+		
 		
 		#print(x.shape)
 		#num_devices = len(jax.devices())
