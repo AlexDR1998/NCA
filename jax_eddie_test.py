@@ -16,11 +16,11 @@ vmat = jax.vmap(matmul)
 pmat = jax.pmap(matmul)
 
 
-shard = jax.sharding.PmapSharding(A.shape,sharded_dim=0)
-print(shard)
-A_dev,B_dev = jax.device_put((A,B),shard)
+#shard = jax.sharding.PmapSharding(jax.devices(),A.shape,sharded_dim=0)
+#print(shard)
+#A_dev,B_dev = jax.device_put((A,B),shard)
 
-C_dev = pmat(A_dev,B_dev)
+C_dev = pmat(A,B)
 C = vmat(A,B)
 print(C)
 print(C_dev)
