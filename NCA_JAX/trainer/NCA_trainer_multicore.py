@@ -228,8 +228,8 @@ class NCA_Trainer(object):
 		# Initialise data and split into x and y
 		self.DATA_AUGMENTER.data_init()
 		x,y = self.DATA_AUGMENTER.split_x_y(1)
-		t = jnp.ones(x.shape[0])*t
-		pmake_step = jax.pmap(make_step,in_axes=(None,0,0,0,0,0),out_axes=(None,0,0),axis_name="batch")
+		#t = jnp.ones(x.shape[0])*t
+		pmake_step = jax.pmap(make_step,in_axes=(None,0,0,None,None,0),out_axes=(None,None,0),axis_name="batch")
 
 		
 		for i in tqdm(range(iters)):
