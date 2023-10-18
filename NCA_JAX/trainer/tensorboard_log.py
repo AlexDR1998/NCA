@@ -57,6 +57,7 @@ class NCA_Train_log(object):
 				flag whether to save images of intermediate x states. Useful for debugging if a model is learning, but can use up a lot of storage if training many models
 
 		"""
+		#print(losses.shape)
 		BATCHES = losses.shape[0]
 		N = losses.shape[1]
 		with self.train_summary_writer.as_default():
@@ -90,21 +91,24 @@ class NCA_Train_log(object):
 				if write_images:
 					for b in range(BATCHES):
 						if self.RGB_mode=="RGB":
-							tf.summary.image('Trajectory batch '+str(b),np.einsum("ncxy->nxyc",x[b,:,:3,...]),step=i,max_outputs=x.shape[0])
+							#tf.summary.image('Trajectory batch '+str(b),np.einsum("ncxy->nxyc",x[b,:,:3,...]),step=i,max_outputs=x.shape[0])
+							tf.summary.image('Trajectory batch '+str(b),np.einsum("ncxy->nxyc",x[b][:,:3,...]),step=i,max_outputs=N)
 						elif self.RGB_mode=="RGBA":
-							tf.summary.image('Trajectory batch '+str(b),np.einsum("ncxy->nxyc",x[b,:,:4,...]),step=i,max_outputs=x.shape[0])
+							#tf.summary.image('Trajectory batch '+str(b),np.einsum("ncxy->nxyc",x[b,:,:4,...]),step=i,max_outputs=x.shape[0])
+							tf.summary.image('Trajectory batch '+str(b),np.einsum("ncxy->nxyc",x[b][:,:4,...]),step=i,max_outputs=N)
 					if nca.N_CHANNELS > 4:
 						b=0
 						if self.RGB_mode=="RGB":
-							hidden_channels = x[b,:,3:]
+							hidden_channels = x[b][:,3:]
 						elif self.RGB_mode=="RGBA":
-							hidden_channels = x[b,:,4:]
+							hidden_channels = x[b][:,4:]
 						extra_zeros = (-hidden_channels.shape[1])%3
 						hidden_channels = np.pad(hidden_channels,((0,0),(0,extra_zeros),(0,0),(0,0)))
 						#print(hidden_channels.shape)
 						w = hidden_channels.shape[-2]
 						h = hidden_channels.shape[-1]
 						hidden_channels_r = np.reshape(hidden_channels,(hidden_channels.shape[0],3,w*(hidden_channels.shape[1]//3),h))
-						tf.summary.image('Trajectory batch 0, hidden channels',np.einsum("ncxy->nxyc",hidden_channels_r),step=i,max_outputs=x.shape[0])
+						#tf.summary.image('Trajectory batch 0, hidden channels',np.einsum("ncxy->nxyc",hidden_channels_r),step=i,max_outputs=x.shape[0])
+						tf.summary.image('Trajectory batch 0, hidden channels',np.einsum("ncxy->nxyc",hidden_channels_r),step=i,max_outputs=N)
 
 	

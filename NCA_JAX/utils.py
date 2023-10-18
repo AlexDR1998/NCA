@@ -16,10 +16,9 @@ from tensorflow.python.framework import tensor_util
 import tensorflow as tf
 # Some convenient helper functions
 #@jax.jit
+
 def key_array_gen(key,shape):
 	"""
-	
-
 	Parameters
 	----------
 	key : jax.random.PRNGKey, 
@@ -36,6 +35,33 @@ def key_array_gen(key,shape):
 	shape.append(2)
 	key_array = jax.random.randint(key,shape=shape,minval=0,maxval=2_147_483_647,dtype="uint32")
 	return key_array
+
+def key_pytree_gen(key,shape):
+	"""
+	
+	
+	Parameters
+	----------
+	key : jax.random.PRNGKey, 
+		Jax random number key.
+	shape : tuple of ints
+		Shape to broadcast to
+
+	Returns
+	-------
+	key_array : uint32[shape,2]
+		array of random keys
+	"""
+	shape = list(shape)
+	shape.append(2)
+	key_array = jax.random.randint(key,shape=shape,minval=0,maxval=2_147_483_647,dtype="uint32")
+	key_array = list(key_array)
+	return key_array
+
+#def key_array_gen_pytree(key,BATCHES,N):
+#	key_array = []
+#	for i in range(BATCHES):
+		
 
 
 def grad_norm(grad):
@@ -165,7 +191,7 @@ def load_micropattern_radii(impath):
 	for f_str in filenames:
 		ims.append(skimage.io.imread(f_str))
 	print(jax.tree_util.tree_structure(ims))
-	arshape = lambda arr : arr.shape
+	arshape = lambda arr : arr.shape[0]
 	normalise = lambda arr : arr/np.max(arr)
 	log = lambda arr : np.log1p(arr)
 	pad = lambda arr : np.pad(arr,((10,10),(10,10),(0,0)))
@@ -173,7 +199,9 @@ def load_micropattern_radii(impath):
 	ims = list(map(lambda x: pad(normalise(log(normalise(x)))),ims))
 	#ims = list(map(log,ims))
 	masks = list(map(adhesion_mask_convex_hull,ims))
-	print(masks)
+	print(shapes)
+	plt.hist(shapes)
+	plt.show()
 	#xx = masks[1]
 	#yy = masks[2]
 	#rs = masks[3]
@@ -191,16 +219,16 @@ def load_micropattern_radii(impath):
 # 		
 # 		plt.legend()
 # 		plt.show()
-		fig,ax = plt.subplots(1)
-		circ = Circle((xx,yy),rs,fill=False,color="yellow")
-		ax.add_patch(circ)
-		ax.imshow(ims[i][:,:,:3])
-		plt.show()
-		plt.imshow(masks[i][0])
-		plt.show()
-		plt.imshow(convex)
-		plt.show()
-		#plt.imshow(masks[i]*ims[i][:,:,3])
+# 		fig,ax = plt.subplots(1)
+# 		circ = Circle((xx,yy),rs,fill=False,color="yellow")
+# 		ax.add_patch(circ)
+# 		ax.imshow(ims[i][:,:,:3])
+# 		plt.show()
+# 		plt.imshow(masks[i][0])
+# 		plt.show()
+# 		plt.imshow(convex)
+# 		plt.show()
+# 		#plt.imshow(masks[i]*ims[i][:,:,3])
 		
 		#plt.show()
 		#print(masks)

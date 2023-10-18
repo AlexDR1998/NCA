@@ -1,6 +1,6 @@
 from NCA_JAX.model.NCA_model import NCA
 from NCA_JAX.trainer.NCA_trainer import *
-from NCA_JAX.utils import load_emoji_sequence
+from NCA_JAX.utils import *
 from NCA_JAX.NCA_visualiser import *
 import optax
 import numpy as np
@@ -15,8 +15,10 @@ import jax.numpy as jnp
 #BATCHES = 7
 CHANNELS = 16
 t = 64
-iters=1000
-data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=2)
+iters=100
+data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=4)
+
+#load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
 # class data_augmenter_subclass(DataAugmenter):
 # 	 #Redefine how data is pre-processed before training
 # 	 def data_init(self):
@@ -34,10 +36,10 @@ data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],down
 # 		return x,y
 	
 
-mask = np.zeros((2,data.shape[-2]+10,data.shape[-1]+10))
-mask[0,::2]=1 
-mask[1,:,::2]=1
-mask = jnp.array(mask)
+# mask = np.zeros((2,data.shape[-2]+10,data.shape[-1]+10))
+# mask[0,::2]=1 
+# mask[1,:,::2]=1
+# mask = jnp.array(mask)
 
 schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
 optimiser= optax.adamw(schedule)
@@ -49,10 +51,13 @@ nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="jax_macmigs_gpu_test_2",
-				  SHARDING=4)
+				  model_filename="jax_pytree_batch_test_gpu")#,
+				  #SHARDING=4)
 				  #BOUNDARY_MASK=mask)
+
+
 opt.train(t,iters,optimiser=optimiser)
+
 
 
 
