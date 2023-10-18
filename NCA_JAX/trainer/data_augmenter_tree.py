@@ -91,34 +91,17 @@ class DataAugmenter(object):
 			y = self.unshift(y, am, self.PREVIOUS_KEY)
 
 		x_true,_ =self.split_x_y(1)
-		#x_true = list(x_true)
-		#x = list(x)
-		
-		
+				
 		propagate_xn = lambda x:x.at[1:].set(x[:-1])
 		reset_x0 = lambda x,x_true:x.at[0].set(x_true[0])
 		
-# 		inject_true = lambda x,x_true,mask:x.at[:,:self.OBS_CHANNELS].set(jnp.where(condition=mask,
-# 																			        x=x[:,:self.OBS_CHANNELS],
-# 																					y=x_true[:,:self.OBS_CHANNELS]))
-		
-		
 		x = jax.tree_util.tree_map(propagate_xn,x) # Set initial condition at each X[n] at next iteration to be final state from X[n-1] of this iteration
 		x = jax.tree_util.tree_map(reset_x0,x,x_true) # Keep first initial x correct
-# 		print(jax.tree_util.tree_structure(x))
-# 		print(x[0].shape)
-# 		print(jax.tree_util.tree_structure(y))
-# 		print(y[0].shape)
-# 		print(jax.tree_util.tree_structure(x_true))
-# 		print(x_true[0].shape)
 		
 		if i < 500:		
-			#mask = list(jnp.arange(len(x))%2)
-			#print(jax.tree_util.tree_structure(mask))
-			#print(mask[0].shape)
 			for b in range(len(x)//2):
-				x[b*2] = x[b*2].at[:,:self.OBS_CHANNELS].set(x_true[b*2][:,:self.OBS_CHANNELS])
-		#	x = jax.tree_util.tree_map(inject_true,x,[x_true,mask]) # Set every other batch of intermediate initial conditions to correct initial conditions
+				x[b*2] = x[b*2].at[:,:self.OBS_CHANNELS].set(x_true[b*2][:,:self.OBS_CHANNELS]) # Set every other batch of intermediate initial conditions to correct initial conditions
+		
 			
 		key=jax.random.PRNGKey(int(time.time()))
 
@@ -148,46 +131,6 @@ class DataAugmenter(object):
 		x = jax.tree_util.tree_map(lambda data:data[:-N_steps],self.data_saved)
 		y = jax.tree_util.tree_map(lambda data:data[N_steps:],self.data_saved)
 		return x,y
-# 	@eqx.filter_jit
-# 	def concat_x_y(self,x,y):
-# 		"""
-# 		Joins x and y together as one data tensor along time axis - useful for 
-# 		data processing that affects each batch differently, but where
-# 		identitcal transformations are needed for x and y. i.e. random shifting
-
-# 		Parameters
-# 		----------
-# 		x : float32[:,N,...]
-# 			Initial conditions
-# 		y : float32[:,N,...]
-# 			Final states
-
-# 		Returns
-# 		-------
-# 		data : float32[:,2N,...]
-# 			x and y concatenated along axis 1
-# 		"""
-# 		return jnp.concatenate((x,y),axis=1)
-# 	@eqx.filter_jit
-# 	def unconcat_x_y(self,data):
-# 		"""
-# 		Inverse of concat_x_y
-
-# 		Parameters
-# 		----------
-# 		data : float32[:,2N,...]
-# 			x and y concatenated along axis 0
-# 		Returns
-# 		-------
-
-# 		x : float32[:,N,...]
-# 			Initial conditions
-# 		y : float32[:,N,...]
-# 			Final states
-
-# 		"""
-# 		midpoint = data.shape[1]//2
-# 		return data[:,:midpoint],data[:,midpoint:]
 	
 	@eqx.filter_jit
 	def pad(self,data,am):
@@ -209,7 +152,7 @@ class DataAugmenter(object):
 
 		"""
 		return jax.tree_util.tree_map(lambda x,am:jnp.pad(x,((0,0),(0,0),(am,am),(am,am))),data,[am]*len(data))
-		#return jnp.pad(data,((0,0),(0,0),(0,0),(am,am),(am,am)))
+
 	
 	@eqx.filter_jit
 	def shift(self,data,am,key=jax.random.PRNGKey(int(time.time()))):
@@ -232,15 +175,11 @@ class DataAugmenter(object):
 
 		"""
 
-			
 		shifts = jax.random.randint(key,minval=-am,maxval=am,shape=(len(data),2))
-		#return jax.tree_util.tree_map(lambda data,shifts:jnp.roll(data,shifts,axis=(-1,-2)),data,shifts)
 		for b in range(len(data)):
 			data[b] = jnp.roll(data[b],shifts[b],axis=(-1,-2))
 		return data
-		#for b in range(data.shape[1]):
-		#	data = data.at[b].set(jnp.roll(data[b],shifts[b],axis=(-1,-2)))
-		#return data
+
 	@eqx.filter_jit
 	def unshift(self,data,am,key):
 		"""
@@ -262,20 +201,11 @@ class DataAugmenter(object):
 
 		"""
 
-			
-		#shifts = jax.random.randint(key,minval=-am,maxval=am,shape=(data[0].shape[0],2))
-		#return jax.tree_util.tree_map(lambda data,shifts:jnp.roll(data,-shifts,axis=(-1,-2)),data,shifts)
 		shifts = jax.random.randint(key,minval=-am,maxval=am,shape=(len(data),2))
-		#return jax.tree_util.tree_map(lambda data,shifts:jnp.roll(data,shifts,axis=(-1,-2)),data,shifts)
 		for b in range(len(data)):
 			data[b] = jnp.roll(data[b],-shifts[b],axis=(-1,-2))
 		return data
-		#for b in range(data.shape[1]):
-		#	data = data.at[b].set(jnp.roll(data[b],-shifts[b],axis=(-1,-2)))
-		#return data
-	
-	
-	
+
 	
 	def noise(self,data,am,full=True,key=jax.random.PRNGKey(int(time.time()))):
 		"""
@@ -301,8 +231,6 @@ class DataAugmenter(object):
 		noisy = am*jax.random.uniform(key,shape=data.shape) + (1-am)*data
 		noisy = jax.tree_util.tree_map(lambda x,key:am*jax.random.uniform(key,shape=x.shape) + (1-am)*x,data,key_array)
 		if not full:
-			#noisy[:,:,self.OBS_CHANNELS:] = data[:,:,self.OBS_CHANNELS:]
-			#noisy = noisy.at[:,:,self.OBS_CHANNELS:].set(data[:,:,self.OBS_CHANNELS:])
 			noisy = jax.tree_util.tree_map(lambda x,y:x.at[:,self.OBS_CHANNELS:].set(y[:,self.OBS_CHANNELS:]),noisy,data)
 		return noisy
 		
@@ -324,10 +252,10 @@ class DataAugmenter(object):
 			data augmented along batch axis
 
 		"""
-		#return jnp.repeat(data,B,axis=0)
+
 		list_repeated = list(itertools.repeat(data,B))
 		array_repeated = jax.tree_util.tree_map(lambda x:jnp.array(x),list_repeated)
-		#print(jax.tree_util.tree_structure(array_repeated))
+
 		return jax.tree_util.tree_flatten(array_repeated)[0]
 	
 	def save_data(self,data):

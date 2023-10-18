@@ -16,7 +16,9 @@ import jax.numpy as jnp
 CHANNELS = 16
 t = 64
 iters=100
-data = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=4)
+data_1 = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=4)
+data_2 = load_emoji_sequence(["crab.png","alien_monster.png","butterfly.png"],downsample=2)
+data = [data_1[0],data_2[0]]
 
 #load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
 # class data_augmenter_subclass(DataAugmenter):
@@ -51,7 +53,7 @@ nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="jax_pytree_batch_test_gpu")#,
+				  model_filename="jax_pytree_multisize_batch_gpu")#,
 				  #SHARDING=4)
 				  #BOUNDARY_MASK=mask)
 

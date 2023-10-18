@@ -61,7 +61,7 @@ class NCA_Trainer(object):
 		
 		# Set up variables 
 		self.CHANNELS = self.NCA_model.N_CHANNELS
-		self.OBS_CHANNELS = data.shape[2]
+		self.OBS_CHANNELS = data[0].shape[1]
 		self.SHARDING = SHARDING
 		
 		# Set up data and data augmenter class
@@ -200,16 +200,7 @@ class NCA_Trainer(object):
 				nca = lambda x,key_array:jax.tree_util.tree_map(v_nca,x,key_array)
 				reg_log = jnp.zeros(len(x))
 				v_intermediate_reg = lambda x:jax.numpy.array(jax.tree_util.tree_map(self.intermediate_reg,x))			
-				v_loss_func = lambda x,y:jax.numpy.array(jax.tree_util.tree_map(self.loss_func,x,y))
-
-				# vmapped PyTree version
-				#nca_vn = jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),in_axes=0,out_axes=0,axis_name="N")
-				#nca = jax.vmap(nca_vn,in_axes=0,out_axes=0,axis_name="batch")
-				#reg_log = jnp.zeros(len(x))
-				#v_intermediate_reg = jax.vmap(self.intermediate_reg,in_axes=0,out_axes=0,axis_name="batch")
-				#v_loss_func = jax.vmap(self.loss_func,in_axes=(0,0),out_axes=0,axis_name="batch")
-				
-
+				v_loss_func = lambda x,y:jax.numpy.array(jax.tree_util.tree_map(self.loss_func,x,y))				
 				
 				# Structuring this as function and lax.scan speeds up jit compile a lot
 
@@ -219,15 +210,10 @@ class NCA_Trainer(object):
 					
 					#key_array = key_array_gen(key,(x.shape[0],x.shape[1]))
 					key_array = key_pytree_gen(key,(len(x),x[0].shape[0]))
-					
-					x = nca(x,key_array)
-					
+					x = nca(x,key_array)				
 					reg_log+=v_intermediate_reg(x)
-					#reg_log+=jax.numpy.array(jax.tree_util.tree_map(self.intermediate_reg,x))
 					return (key,x,reg_log),None
-				#def cond_func(carry):
-				#	_,_,j = carry
-				#	return j<t
+
 				(key,x,reg_log),_ = jax.lax.scan(nca_step,(key,x,reg_log),xs=jnp.arange(t))
 				#(key,x),_ = eqx.internal.scan(nca_step,(key,x),xs=jnp.arange(t),kind="checkpointed",checkpoints="all")
 				#(key,x,_) = eqx.internal.while_loop(cond_func,nca_step,(key,x,0),kind="checkpointed",max_steps=t)
