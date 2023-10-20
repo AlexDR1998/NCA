@@ -28,5 +28,6 @@ class NCA_boundary(object):
 			return x
 		else:
 			m_channels = self.MASK.shape[0]
+			#print(self.MASK.shape)
 			x_masked = x.at[-m_channels:].set(self.MASK)
 			return x_masked

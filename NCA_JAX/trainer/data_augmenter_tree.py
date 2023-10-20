@@ -38,7 +38,7 @@ class DataAugmenter(object):
 
 		self.data_true = data_true
 		self.data_saved = data_true
-
+		
 	def data_init(self,SHARDING = None):
 		"""
 		Chain together various data augmentations to perform at intialisation of NCA training
@@ -110,6 +110,9 @@ class DataAugmenter(object):
 		self.PREVIOUS_KEY = key
 		return x,y
 		
+
+
+
 	def split_x_y(self,N_steps=1):
 		"""
 		Splits data into x (initial conditions) and y (final states). 

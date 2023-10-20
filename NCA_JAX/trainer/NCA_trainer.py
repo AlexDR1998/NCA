@@ -64,13 +64,19 @@ class NCA_Trainer(object):
 		self.OBS_CHANNELS = data[0].shape[1]
 		self.SHARDING = SHARDING
 		
+		
 		# Set up data and data augmenter class
 		self.DATA_AUGMENTER = DATA_AUGMENTER(data,self.CHANNELS-self.OBS_CHANNELS)
 		self.data = self.DATA_AUGMENTER.return_true_data()
 		
 		# Set up boundary augmenter class
-		self.BOUNDARY_CALLBACK = NCA_boundary(BOUNDARY_MASK)
+		# length of BOUNDARY_MASK PyTree should be 1, or the same as number of batches
+		#self.BOUNDARY_CALLBACK = NCA_boundary(BOUNDARY_MASK)
 		
+		self.BOUNDARY_CALLBACK = []
+		for b in range(len(BOUNDARY_MASK)):
+			self.BOUNDARY_CALLBACK.append(NCA_boundary(BOUNDARY_MASK[b]))
+		#print(jax.tree_util.tree_structure(self.BOUNDARY_CALLBACK))
 		# Set logging behvaiour based on provided filename
 		if model_filename is None:
 			self.model_filename = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -129,7 +135,13 @@ class NCA_Trainer(object):
 			x = x[:,:self.OBS_CHANNELS]
 		return jnp.mean(jnp.abs(x)+jnp.abs(x-1)-1)
 	
-	def train(self,t,iters,optimiser=None,STATE_REGULARISER=1.0,key=jax.random.PRNGKey(int(time.time()))):
+	def train(self,
+		      t,
+			  iters,
+			  optimiser=None,
+			  STATE_REGULARISER=1.0,
+			  WARMUP=64,
+			  key=jax.random.PRNGKey(int(time.time()))):
 		"""
 		Perform t steps of NCA on x, compare output to y, compute loss and gradients of loss wrt model parameters, and update parameters.
 
@@ -141,10 +153,11 @@ class NCA_Trainer(object):
 			number of training iterations
 		optimiser : optax.GradientTransformation
 			the optax optimiser to use when applying gradient updates to model parameters.
-			if None, constructs adam with gradient clipping and cosine learning rate schedule
+			if None, constructs adamw with exponential learning rate schedule
 		STATE_REGULARISER : int optional
 			Strength of intermediate state regulariser. Defaults to 1.0
-			
+		WARMUP : int optional
+			Number of iterations to wait for until starting model checkpointing
 		key : jax.random.PRNGKey, optional
 			Jax random number key. The default is jax.random.PRNGKey(int(time.time())).
 		Returns
@@ -189,15 +202,15 @@ class NCA_Trainer(object):
 				# Gradient and values of loss function computed here
 				_nca = eqx.combine(nca_diff,nca_static)
 				# Array version - might be faster?
-				#TODO: test which is faster on GPU - array only or pytree
 # 				nca = jax.vmap(jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),axis_name="N"),axis_name="batch")
 # 				reg_log = jnp.zeros(x.shape[0])
 # 				v_intermediate_reg = jax.vmap(self.intermediate_reg,in_axes=0,out_axes=0,axis_name="batch")
 # 				v_loss_func = jax.vmap(self.loss_func,in_axes=(0,0),out_axes=0,axis_name="batch")				
 				
 				# PyTree version
-				v_nca = jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),axis_name="N")
-				nca = lambda x,key_array:jax.tree_util.tree_map(v_nca,x,key_array)
+				#v_nca = jax.vmap(lambda x,key:_nca(x,boundary_callback=self.BOUNDARY_CALLBACK,key=key),axis_name="N")
+				v_nca = jax.vmap(_nca,in_axes=(0,None,0),out_axes=0,axis_name="N") # boundary is independant of time N
+				nca = lambda x,callback,key_array:jax.tree_util.tree_map(v_nca,x,callback,key_array)
 				reg_log = jnp.zeros(len(x))
 				v_intermediate_reg = lambda x:jax.numpy.array(jax.tree_util.tree_map(self.intermediate_reg,x))			
 				v_loss_func = lambda x,y:jax.numpy.array(jax.tree_util.tree_map(self.loss_func,x,y))				
@@ -210,7 +223,7 @@ class NCA_Trainer(object):
 					
 					#key_array = key_array_gen(key,(x.shape[0],x.shape[1]))
 					key_array = key_pytree_gen(key,(len(x),x[0].shape[0]))
-					x = nca(x,key_array)				
+					x = nca(x,self.BOUNDARY_CALLBACK,key_array)				
 					reg_log+=v_intermediate_reg(x)
 					return (key,x,reg_log),None
 
@@ -240,10 +253,12 @@ class NCA_Trainer(object):
 			self.OPTIMISER = optimiser
 		opt_state = self.OPTIMISER.init(nca_diff)
 		
+		
 		# Initialise data and split into x and y - if sharding, DATA_AUGMENTER handles it
 		self.DATA_AUGMENTER.data_init(self.SHARDING)
 		x,y = self.DATA_AUGMENTER.split_x_y(1)
-		print(x[0].shape)
+		#print(x[0].shape)
+		best_loss = 100000000
 		for i in tqdm(range(iters)):
 			key = jax.random.fold_in(key,i)
 			nca,opt_state,(mean_loss,(x,losses)) = make_step(nca, x, y, t, opt_state,key)
@@ -251,6 +266,14 @@ class NCA_Trainer(object):
 				self.LOGGER.tb_training_loop_log_sequence(losses, x, i, nca)
 			# Do data augmentation update
 			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
-				
+			
+			# Save model whenever mean_loss beats the previous best loss
+			if i>WARMUP:
+				if mean_loss < best_loss:
+					self.NCA_model = nca
+					self.NCA_model.save(self.MODEL_PATH,overwrite=True)
+					best_loss = mean_loss
+					tqdm.write("--- Model saved at "+str(i)+" epochs with loss "+str(mean_loss)+" ---")
+			
 		self.NCA_model = nca
 		self.NCA_model.save(self.MODEL_PATH,overwrite=True)

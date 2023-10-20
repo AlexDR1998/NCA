@@ -164,6 +164,8 @@ class NCA(eqx.Module):
 		x_new = x + sigma*dx
 
 		#x_new = augment_callback(x_new)
+		#print(x_new.shape)
+		#print(boundary_callback)
 		return boundary_callback(x_new)
 		#return x + dx
 	
