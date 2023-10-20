@@ -7,7 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 import random
-
+import sys
 
 
 
@@ -17,11 +17,11 @@ index=int(sys.argv[1])-1
 
 CHANNELS = 16
 t = 64
-iters=1000
+iters=2000
 BATCHES = 16
 
 # Select which subset of data to train on
-data,masks = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
+data,masks = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
 combined = list(zip(data,masks,range(len(data))))
 random.shuffle(combined)
 data,masks,inds = zip(*combined)
@@ -33,6 +33,8 @@ masks= masks[:BATCHES]
 inds = inds[:BATCHES]
 print("Selected batches: "+str(inds))
 
+schedule = optax.exponential_decay(5e-2, transition_steps=iters, decay_rate=0.99)
+optimiser= optax.adamw(schedule)
 
 # Remove most of the data augmentation - don't need shifting or extra batches or intermediate propagation
 class data_augmenter_subclass(DataAugmenter):
