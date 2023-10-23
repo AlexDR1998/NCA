@@ -267,6 +267,10 @@ class NCA_Trainer(object):
 			# Do data augmentation update
 			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
 			
+			# Check if NaN
+			assert not jnp.any(jnp.isnan(x)), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
+			
+			
 			# Save model whenever mean_loss beats the previous best loss
 			if i>WARMUP:
 				if mean_loss < best_loss:
