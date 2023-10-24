@@ -268,7 +268,7 @@ class NCA_Trainer(object):
 			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
 			
 			# Check if NaN
-			assert not jnp.any(jnp.isnan(x)), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
+			assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN  -|-|-|-|-|-|"
 			
 			
 			# Save model whenever mean_loss beats the previous best loss
