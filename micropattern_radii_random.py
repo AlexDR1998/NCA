@@ -18,10 +18,11 @@ index=int(sys.argv[1])-1
 CHANNELS = 16
 t = 64
 iters=2000
-BATCHES = 8
+BATCHES = 2
 
 # Select which subset of data to train on
-data,masks = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
+#data,masks = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
+data,masks = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
 combined = list(zip(data,masks,range(len(data))))
 random.shuffle(combined)
 data,masks,inds = zip(*combined)
@@ -52,7 +53,7 @@ class data_augmenter_subclass(DataAugmenter):
 nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="micropattern_radii_random_b8_r1e-2_"+str(index),
+				  model_filename="micropattern_radii_random_b2_r1e-2_"+str(index),
 				  BOUNDARY_MASK=masks,
 				  DATA_AUGMENTER = data_augmenter_subclass)
 
