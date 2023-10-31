@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N micropattern_radii_random
+#$ -N micropattern_radii_sizes
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
@@ -14,5 +14,5 @@ export CUDA_VISIBLE_DEVICES=$SGE_HGR_gpu
 
 module load anaconda
 source activate jax_gpu
-python ./micropattern_radii_eddie.py $1
+python ./micropattern_radii_sizes.py $1
 source deactivate

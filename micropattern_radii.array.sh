@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N micropattern_radii_random
+#$ -N micropattern_radii_sizes
 #$ -P scs_schumacher-group 
 #$ -M s1605376@ed.ac.uk
 #$ -cwd

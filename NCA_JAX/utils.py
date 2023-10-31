@@ -197,6 +197,7 @@ def load_micropattern_radii(impath):
 	mask_out = lambda arr,mask : np.where(np.repeat(mask[0][:,:,np.newaxis],4,axis=-1),arr,np.zeros_like(arr))
 	reshape = lambda arr:np.einsum("xyc->cxy",arr)
 	just_mask = lambda mask:mask[0][np.newaxis]
+	shapes = lambda arr: arr.shape[-1]
 	def stack_x0(arr,mask):
 		x0 = np.zeros_like(arr).astype(float)
 		masked_arr = np.ma.array(arr,mask=~np.repeat(mask[0][np.newaxis],4,axis=0).astype(bool))
@@ -212,7 +213,7 @@ def load_micropattern_radii(impath):
 	ims = list(map(reshape,ims))
 	ims = list(map(stack_x0,ims,masks))
 	masks = list(map(just_mask,masks))
-	
+	shapes = list(map(shapes,ims))
 		
 	#plt.hist(shapes)
 	#plt.show()
@@ -250,7 +251,7 @@ def load_micropattern_radii(impath):
 	
 	#ims = jax.tree_util.treedef_tuple(ims)
 	#print(jnp.mean(ims))
-	return ims,masks
+	return ims,masks,shapes
 
 
 
