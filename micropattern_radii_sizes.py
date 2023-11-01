@@ -17,9 +17,9 @@ index=int(sys.argv[1])-1
 
 CHANNELS = 16
 t = 64
-iters=2000
+iters=4000
 #BATCHES = 2
-
+B=1
 # Select which subset of data to train on
 data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
 #data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
@@ -37,10 +37,10 @@ print(shapes)
 print(inds)
 
 
-data = data[index*5:(index+1)*5]
-masks= masks[index*5:(index+1)*5]
-inds = inds[index*5:(index+1)*5]
-shapes = shapes[index*5:(index+1)*5]
+data = data[index*B:(index+1)*B]
+masks= masks[index*B:(index+1)*B]
+inds = inds[index*B:(index+1)*B]
+shapes = shapes[index*B:(index+1)*B]
 print("Selected batches: "+str(inds))
 print("Size of selected images: "+str(shapes))
 schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
@@ -62,7 +62,7 @@ class data_augmenter_subclass(DataAugmenter):
 nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="micropattern_radii_sized_b5_r1e-2_"+str(index),
+				  model_filename="micropattern_radii_sized_b"+str(B)+"_r1e-2_"+str(index),
 				  BOUNDARY_MASK=masks,
 				  DATA_AUGMENTER = data_augmenter_subclass)
 
