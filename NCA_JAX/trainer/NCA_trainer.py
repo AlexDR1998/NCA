@@ -211,7 +211,7 @@ class NCA_Trainer(object):
 				# Gradient and values of loss function computed here
 				_nca = eqx.combine(nca_diff,nca_static)
 				v_nca = jax.vmap(_nca,in_axes=(0,None,0),out_axes=0,axis_name="N") # boundary is independant of time N
-				nca = lambda x,callback,key_array:jax.tree_util.tree_map(v_nca,x,callback,key_array)
+				vv_nca = lambda x,callback,key_array:jax.tree_util.tree_map(v_nca,x,callback,key_array)
 				reg_log = jnp.zeros(len(x))
 				v_intermediate_reg = lambda x:jax.numpy.array(jax.tree_util.tree_map(self.intermediate_reg,x))
 				_loss_func = lambda x,y,key:self.loss_func(x,y,key,SAMPLES=LOSS_SAMPLING)
@@ -223,7 +223,7 @@ class NCA_Trainer(object):
 					key,x,reg_log = carry
 					key = jax.random.fold_in(key,j)
 					key_array = key_pytree_gen(key,(len(x),x[0].shape[0]))
-					x = nca(x,self.BOUNDARY_CALLBACK,key_array)				
+					x = vv_nca(x,self.BOUNDARY_CALLBACK,key_array)				
 					reg_log+=v_intermediate_reg(x)
 					return (key,x,reg_log),None
 
@@ -254,30 +254,37 @@ class NCA_Trainer(object):
 		opt_state = self.OPTIMISER.init(nca_diff)
 		
 		
-		# Initialise data and split into x and y - if sharding, DATA_AUGMENTER handles it
-		
+		# Split data into x and y
 		x,y = self.DATA_AUGMENTER.split_x_y(1)
+		
 		#print(x[0].shape)
 		best_loss = 100000000
+		loss_thresh = 1e16
+		model_saved = False
 		for i in tqdm(range(iters)):
 			key = jax.random.fold_in(key,i)
 			nca,opt_state,(mean_loss,(x,losses)) = make_step(nca, x, y, t, opt_state,key)
+			
 			if self.IS_LOGGING:
 				self.LOGGER.tb_training_loop_log_sequence(losses, x, i, nca)
-			# Do data augmentation update
-			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
 			
 			# Check if NaN
 			assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN  -|-|-|-|-|-|"
+			assert not jnp.any(jnp.isnan(x)), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
+			assert mean_loss<loss_thresh, "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+", optimisation probably diverging  -|-|-|-|-|-|"
 			
+			# Do data augmentation update
+			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
 			
 			# Save model whenever mean_loss beats the previous best loss
 			if i>WARMUP:
 				if mean_loss < best_loss:
+					model_saved=True
 					self.NCA_model = nca
 					self.NCA_model.save(self.MODEL_PATH,overwrite=True)
 					best_loss = mean_loss
 					tqdm.write("--- Model saved at "+str(i)+" epochs with loss "+str(mean_loss)+" ---")
-			
-		self.NCA_model = nca
-		self.NCA_model.save(self.MODEL_PATH,overwrite=True)
+		
+		assert model_saved, "|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|"
+		#self.NCA_model = nca
+		#self.NCA_model.save(self.MODEL_PATH,overwrite=True)
