@@ -270,7 +270,7 @@ class NCA_Trainer(object):
 			
 			# Check if NaN
 			assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN  -|-|-|-|-|-|"
-			assert not jnp.any(jnp.isnan(x)), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
+			assert not any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
 			assert mean_loss<loss_thresh, "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+", optimisation probably diverging  -|-|-|-|-|-|"
 			
 			# Do data augmentation update
