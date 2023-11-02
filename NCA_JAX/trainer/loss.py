@@ -22,7 +22,7 @@ def l2(x,y):
 	return jnp.sum(((x-y)**2),axis=[-1,-2,-3])
 @jax.jit
 def euclidean(x,y):
-	return jnp.sqrt(jnp.sum(((x-y)**2),axis=[-1,-2,-3]))
+	return jnp.sqrt(jnp.mean(((x-y)**2),axis=[-1,-2,-3]))
 
 #@jax.jit
 def random_sampled_euclidean(x,y,key,SAMPLES=64):
