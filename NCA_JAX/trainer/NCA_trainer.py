@@ -269,9 +269,9 @@ class NCA_Trainer(object):
 				self.LOGGER.tb_training_loop_log_sequence(losses, x, i, nca)
 			
 			# Check if NaN
-			assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN  -|-|-|-|-|-|"
-			assert not any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))), "|-|-|-|-|-|-  X reached NaN  -|-|-|-|-|-|"
-			assert mean_loss<loss_thresh, "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+", optimisation probably diverging  -|-|-|-|-|-|"
+			assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN at step "+str(i)+" -|-|-|-|-|-|"
+			assert not any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))), "|-|-|-|-|-|-  X reached NaN at step "+str(i)+" -|-|-|-|-|-|"
+			assert mean_loss<loss_thresh, "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+" at step "+str(i)+", optimisation probably diverging  -|-|-|-|-|-|"
 			
 			# Do data augmentation update
 			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
