@@ -1,9 +1,9 @@
 from NCA_JAX.model.NCA_model import NCA
 from NCA_JAX.trainer.NCA_trainer import *
-from NCA_JAX.utils import *
-from NCA_JAX.NCA_visualiser import *
+from NCA_JAX.utils import load_pickle,load_micropattern_radii
+#from NCA_JAX.NCA_visualiser import *
 import optax
-import numpy as np
+#import numpy as np
 import jax.numpy as jnp
 import jax
 import random
@@ -21,28 +21,35 @@ iters=4000
 #BATCHES = 2
 B=1
 # Select which subset of data to train on
-data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
-#data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
-#print(shapes)
-combined = list(zip(data,masks,range(len(data)),shapes))
-combined_sorted = sorted(combined,key=lambda pair:pair[3])
+# data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
+# #data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
+# #print(shapes)
+# combined = list(zip(data,masks,range(len(data)),shapes))
+# combined_sorted = sorted(combined,key=lambda pair:pair[3])
 
-#random.shuffle(combined)
-data,masks,inds,shapes = zip(*combined_sorted)
-data = list(data)
-masks = list(masks)
-inds = list(inds)
-shapes = list(shapes)
-print(shapes)
-print(inds)
+# #random.shuffle(combined)
+# data,masks,inds,shapes = zip(*combined_sorted)
+# data = list(data)
+# masks = list(masks)
+# inds = list(inds)
+# shapes = list(shapes)
+# print(shapes)
+# print(inds)
 
+
+# data = data[index*B:(index+1)*B]
+# masks= masks[index*B:(index+1)*B]
+# inds = inds[index*B:(index+1)*B]
+# shapes = shapes[index*B:(index+1)*B]
+# print("Selected batches: "+str(inds))
+# print("Size of selected images: "+str(shapes))
+
+data = load_pickle("../Data/micropattern_radii/micropattern_data_size_sorted.pickle")
+masks = load_pickle("../Data/micropattern_radii/micropattern_masks_size_sorted.pickle")
 
 data = data[index*B:(index+1)*B]
 masks= masks[index*B:(index+1)*B]
-inds = inds[index*B:(index+1)*B]
-shapes = shapes[index*B:(index+1)*B]
-print("Selected batches: "+str(inds))
-print("Size of selected images: "+str(shapes))
+
 schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
 optimiser= optax.adamw(schedule)
 
@@ -62,7 +69,7 @@ class data_augmenter_subclass(DataAugmenter):
 nca = NCA(CHANNELS,KERNEL_STR=["ID","LAP","DIFF"],FIRE_RATE=0.5,PERIODIC=False)
 opt = NCA_Trainer(nca,
 				  data,
-				  model_filename="micropattern_radii_sized_b"+str(B)+"_r1e-2_"+str(index),
+				  model_filename="micropattern_radii_sized_b"+str(B)+"_r1e-2_v2_"+str(index),
 				  BOUNDARY_MASK=masks,
 				  DATA_AUGMENTER = data_augmenter_subclass)
 
