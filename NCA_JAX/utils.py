@@ -12,10 +12,64 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from tqdm import tqdm
 from tensorflow.python.framework import tensor_util
-
+from pathlib import Path
+from typing import Union
+import pickle
 import tensorflow as tf
 # Some convenient helper functions
 #@jax.jit
+
+
+def save_pickle(data, path: Union[str, Path], overwrite: bool = False):
+    """
+    Taken from https://github.com/google/jax/issues/2116
+
+    Parameters
+    ----------
+    path : Union[str, Path]
+        path to filename.
+    overwrite : bool, optional
+        Overwrite existing filename. The default is False.
+
+    Raises
+    ------
+    RuntimeError
+        file already exists.
+
+    Returns
+    -------
+    None.
+
+"""
+    suffix = ".pickle"
+    path = Path(path)
+    if path.suffix != suffix:
+        path = path.with_suffix(suffix)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        if overwrite:
+            path.unlink()
+        else:
+            raise RuntimeError(f'File {path} already exists.')
+    with open(path, 'wb') as file:
+        pickle.dump(data, file)
+    
+def load_pickle(path: Union[str, Path]):
+    
+    suffix = '.pickle'
+    path = Path(path)
+    if not path.is_file():
+        raise ValueError(f'Not a file: {path}')
+    if path.suffix != suffix:
+        raise ValueError(f'Not a {suffix} file: {path}')
+    with open(path, 'rb') as file:
+        data = pickle.load(file)
+    return data
+
+
+
+
+
 
 def key_array_gen(key,shape):
 	"""
