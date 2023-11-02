@@ -13,13 +13,13 @@ import sys
 
 
 index=int(sys.argv[1])-1
-
+B = int(sys.argv[2])
 
 CHANNELS = 16
 t = 64
 iters=4000
 #BATCHES = 2
-B=1
+
 # Select which subset of data to train on
 # data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
 # #data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
@@ -47,8 +47,8 @@ B=1
 data = load_pickle("../Data/micropattern_radii/micropattern_data_size_sorted.pickle")
 masks = load_pickle("../Data/micropattern_radii/micropattern_masks_size_sorted.pickle")
 
-data = data[index*B:(index+1)*B]
-masks= masks[index*B:(index+1)*B]
+data = data[index:(index+B)]
+masks= masks[index:(index+B)]
 
 schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
 optimiser= optax.adamw(schedule)
