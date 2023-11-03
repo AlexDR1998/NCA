@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 CHANNELS=16
 t = 64
-
+B=1
 ### Load pre-processed data
 
 #data = load_pickle("data/micropattern_data_size_sorted.pickle")
@@ -33,7 +33,7 @@ for m in masks:
     boundary_callbacks.append(NCA_boundary(m))
 	
 
-model_name = "models/micropattern_radii_experiments/micropattern_radii_sized_b1_r1e-2_v2"
+model_name = "models/micropattern_radii_experiments/micropattern_radii_sized_b"+str(B)+"_r1e-2_v2"
 model_names = [model_name +str(x)+".eqx" for x in range(135)]
 models = []
 models_raw = []
@@ -66,4 +66,4 @@ for nca in tqdm(models):
     x_pred.append(list(map(only_obs,x)))
 
 
-save_pickle(x_pred,"../Data/micropattern_radii/micropattern_size_b1_v2_predictions.pickle",overwrite=True)
+save_pickle(x_pred,"../Data/micropattern_radii/micropattern_size_b"+str(B)+"_v2_predictions.pickle",overwrite=True)
