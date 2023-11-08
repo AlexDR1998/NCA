@@ -33,7 +33,7 @@ for m in masks:
     boundary_callbacks.append(NCA_boundary(m))
 	
 
-model_name = "models/micropattern_radii_experiments/micropattern_radii_sized_b"+str(B)+"_r1e-2_v2"
+model_name = "models/micropattern_radii_experiments/micropattern_radii_sized_b"+str(B)+"_r1e-2_v2_"
 model_names = [model_name +str(x)+".eqx" for x in range(135)]
 models = []
 models_raw = []
