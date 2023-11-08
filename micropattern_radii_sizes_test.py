@@ -13,6 +13,7 @@ from tqdm import tqdm
 CHANNELS=16
 t = 64
 index=int(sys.argv[1])
+L = int(sys.argv[2])
 ### Load pre-processed data
 
 #data = load_pickle("data/micropattern_data_size_sorted.pickle")
@@ -34,7 +35,7 @@ for m in masks:
 	
 
 model_name = "models/micropattern_radii_experiments/micropattern_radii_sized_b"+str(B)+"_r1e-2_v2_"
-model_names = [model_name +str(x)+".eqx" for x in range(135)]
+model_names = [model_name +str(x)+".eqx" for x in range(L)]
 models = []
 models_raw = []
 for n in model_names:
