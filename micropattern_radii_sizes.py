@@ -50,8 +50,8 @@ masks = load_pickle("../Data/micropattern_radii/micropattern_masks_size_sorted.p
 
 
 if B==0:
-	data = data[ns_sum[index]:ns_sum[index]][:ns[index+1]//2]
-	masks=masks[ns_sum[index]:ns_sum[index]][:ns[index+1]//2]
+	data = data[ns_sum[index]:ns_sum[index+1]][:ns[index+1]//2]
+	masks=masks[ns_sum[index]:ns_sum[index+1]][:ns[index+1]//2]
 else:
 	data = data[index:(index+B)]
 	masks= masks[index:(index+B)]
