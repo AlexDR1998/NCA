@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 CHANNELS=16
 t = 64
-B=1
+index=int(sys.argv[1])
 ### Load pre-processed data
 
 #data = load_pickle("data/micropattern_data_size_sorted.pickle")

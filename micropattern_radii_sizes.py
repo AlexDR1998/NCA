@@ -3,7 +3,7 @@ from NCA_JAX.trainer.NCA_trainer import *
 from NCA_JAX.utils import load_pickle,load_micropattern_radii
 #from NCA_JAX.NCA_visualiser import *
 import optax
-#import numpy as np
+import numpy as np
 import jax.numpy as jnp
 import jax
 import random
@@ -22,20 +22,21 @@ iters=4000
 
 # Select which subset of data to train on
 # data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*")
-# #data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
+#data,masks,shapes = load_micropattern_radii("../Data/micropattern_radii/Chir_Fgf_*/processed/*")
 # #print(shapes)
-# combined = list(zip(data,masks,range(len(data)),shapes))
-# combined_sorted = sorted(combined,key=lambda pair:pair[3])
+#combined = list(zip(data,masks,range(len(data)),shapes))
+#combined_sorted = sorted(combined,key=lambda pair:pair[3])
 
 # #random.shuffle(combined)
-# data,masks,inds,shapes = zip(*combined_sorted)
-# data = list(data)
-# masks = list(masks)
-# inds = list(inds)
-# shapes = list(shapes)
-# print(shapes)
-# print(inds)
+#data,masks,inds,shapes = zip(*combined_sorted)
+#data = list(data)
+#masks = list(masks)
 
+#shapes = np.array(list(shapes))
+#print(shapes)
+
+ns = np.array([0,13,22,15,21,22,23,10,9]) # Divide up micropatterns based on size A1-B4
+ns_sum = np.cumsum(ns)
 
 # data = data[index*B:(index+1)*B]
 # masks= masks[index*B:(index+1)*B]
@@ -47,8 +48,13 @@ iters=4000
 data = load_pickle("../Data/micropattern_radii/micropattern_data_size_sorted.pickle")
 masks = load_pickle("../Data/micropattern_radii/micropattern_masks_size_sorted.pickle")
 
-data = data[index:(index+B)]
-masks= masks[index:(index+B)]
+
+if B==0:
+	data = data[ns_sum[index]:ns_sum[index]][:ns[index+1]//2]
+	masks=masks[ns_sum[index]:ns_sum[index]][:ns[index+1]//2]
+else:
+	data = data[index:(index+B)]
+	masks= masks[index:(index+B)]
 
 schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
 optimiser= optax.adamw(schedule)

@@ -240,7 +240,8 @@ def load_trajectory_log(summary_dir):
 
 def load_micropattern_radii(impath):
 	filenames = glob.glob(impath)
-	#print(filenames)
+	filenames = list(sorted(filenames))
+	#print(sorted(filenames))
 	ims = []
 	for f_str in filenames:
 		ims.append(skimage.io.imread(f_str))

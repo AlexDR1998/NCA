@@ -14,5 +14,5 @@ export CUDA_VISIBLE_DEVICES=$SGE_HGR_gpu
 
 module load anaconda
 source activate jax_gpu
-python ./micropattern_radii_sizes_tests.py
+python ./micropattern_radii_sizes_tests.py 0
 source deactivate
