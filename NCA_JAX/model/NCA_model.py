@@ -269,12 +269,12 @@ class NCA(eqx.Module):
 		#	data = pickle.load(file)
 		return eqx.tree_deserialise_leaves(path,self)
 		
-	def run(self,iters,x,key=jax.random.PRNGKey(int(time.time()))):
+	def run(self,iters,x,callback,key=jax.random.PRNGKey(int(time.time()))):
 		trajectory = []
 		trajectory.append(x)
 		for i in range(iters):
 			key = jax.random.fold_in(key,i)
-			x = self(x,key=key)
+			x = self(x,callback,key=key)
 			trajectory.append(x)
 		return jnp.array(trajectory)
 		
