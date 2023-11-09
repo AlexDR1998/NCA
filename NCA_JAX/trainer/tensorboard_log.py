@@ -126,12 +126,15 @@ class NCA_Train_log(object):
 		with self.train_summary_writer.as_default():
 			trs = []
 			trs_h = []
+			extra_zeros = (-x[0][0].shape[0])%3
 			for b in range(len(x)):
 				
 				T =nca.run(t,x[b][0],boundary_callback[b])
 				T_h = []
+				
 				for i in range(t):
 					t_h = T[i][4:]
+					t_h = np.pad(t_h,((0,extra_zeros),(0,0),(0,0)))
 					t_h = np.reshape(t_h,(3,-1,t_h.shape[-1]))
 					T_h.append(t_h)
 					#print(t_h.shape)
