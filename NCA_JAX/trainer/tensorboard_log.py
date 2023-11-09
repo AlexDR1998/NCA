@@ -115,3 +115,32 @@ class NCA_Train_log(object):
 						tf.summary.image('Trajectory batch 0, hidden channels',np.einsum("ncxy->nxyc",hidden_channels_r),step=i,max_outputs=N)
 
 	
+	def tb_training_end_log(self,nca,x,t,boundary_callback,write_images=True):
+		"""
+		
+
+			Log trained NCA model trajectory after training
+
+		"""
+		print(nca)
+		with self.train_summary_writer.as_default():
+			trs = []
+			trs_h = []
+			for b in range(len(x)):
+				
+				T =nca.run(t,x[b][0],boundary_callback[b])
+				T_h = []
+				for i in range(t):
+					t_h = T[i][4:]
+					t_h = np.reshape(t_h,(3,-1,t_h.shape[-1]))
+					T_h.append(t_h)
+					#print(t_h.shape)
+				trs.append(T)
+				trs_h.append(T_h)
+			for i in range(t):
+				for b in range(len(x)):
+					
+					tf.summary.image("Final NCA trajectory, batch "+str(b),np.einsum("ncxy->nxyc",trs[b][i][np.newaxis,:3,...]),step=i)
+					tf.summary.image("Final NCA trajectory hidden channels, batch "+str(b),np.einsum("ncxy->nxyc",trs_h[b][i][np.newaxis,...]),step=i)
+					
+				

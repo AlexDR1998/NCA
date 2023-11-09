@@ -261,6 +261,8 @@ class NCA_Trainer(object):
 		best_loss = 100000000
 		loss_thresh = 1e16
 		model_saved = False
+		error = 0
+		error_at = 0
 		for i in tqdm(range(iters)):
 			key = jax.random.fold_in(key,i)
 			nca,opt_state,(mean_loss,(x,losses)) = make_step(nca, x, y, t, opt_state,key)
@@ -269,22 +271,49 @@ class NCA_Trainer(object):
 				self.LOGGER.tb_training_loop_log_sequence(losses, x, i, nca)
 			
 			# Check if NaN
-			assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN at step "+str(i)+" -|-|-|-|-|-|"
-			assert not any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))), "|-|-|-|-|-|-  X reached NaN at step "+str(i)+" -|-|-|-|-|-|"
-			assert mean_loss<loss_thresh, "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+" at step "+str(i)+", optimisation probably diverging  -|-|-|-|-|-|"
+			#assert not jnp.isnan(mean_loss), "|-|-|-|-|-|-  Loss reached NaN at step "+str(i)+" -|-|-|-|-|-|"
+			#assert not any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))), "|-|-|-|-|-|-  X reached NaN at step "+str(i)+" -|-|-|-|-|-|"
+			#assert mean_loss<loss_thresh, "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+" at step "+str(i)+", optimisation probably diverging  -|-|-|-|-|-|"
+			
+			if jnp.isnan(mean_loss):
+				error = 1
+				error_at=i
+				break
+			elif any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))):
+				error = 2
+				error_at=i
+				break
+			elif mean_loss>loss_thresh:
+				error = 3
+				error_at=i
+				break
 			
 			# Do data augmentation update
-			x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
-			
-			# Save model whenever mean_loss beats the previous best loss
-			if i>WARMUP:
-				if mean_loss < best_loss:
-					model_saved=True
-					self.NCA_model = nca
-					self.NCA_model.save(self.MODEL_PATH,overwrite=True)
-					best_loss = mean_loss
-					tqdm.write("--- Model saved at "+str(i)+" epochs with loss "+str(mean_loss)+" ---")
+			if error==0:
+				x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
+				
+				# Save model whenever mean_loss beats the previous best loss
+				if i>WARMUP:
+					if mean_loss < best_loss:
+						model_saved=True
+						self.NCA_model = nca
+						self.NCA_model.save(self.MODEL_PATH,overwrite=True)
+						best_loss = mean_loss
+						tqdm.write("--- Model saved at "+str(i)+" epochs with loss "+str(mean_loss)+" ---")
 		
-		assert model_saved, "|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|"
+		if error==0:
+			print("Training completed successfully")
+		elif error==1:
+			print("|-|-|-|-|-|-  Loss reached NaN at step "+str(error_at)+" -|-|-|-|-|-|")
+		elif error==2:
+			print("|-|-|-|-|-|-  X reached NaN at step "+str(error_at)+" -|-|-|-|-|-|")
+		elif error==3:
+			print( "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+" at step "+str(error_at)+", optimisation probably diverging  -|-|-|-|-|-|")
+		#assert model_saved, "|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|"
+		if error!=0 and model_saved==False:
+			print("|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|")
+		elif self.IS_LOGGING and model_saved:
+			x,y = self.DATA_AUGMENTER.split_x_y(1)
+			self.LOGGER.tb_training_end_log(self.NCA_model,x,t,self.BOUNDARY_CALLBACK)
 		#self.NCA_model = nca
 		#self.NCA_model.save(self.MODEL_PATH,overwrite=True)
