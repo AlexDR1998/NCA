@@ -25,20 +25,9 @@ L = int(sys.argv[2])
 data = load_pickle("../Data/micropattern_radii/micropattern_data_size_sorted.pickle")
 masks = load_pickle("../Data/micropattern_radii/micropattern_masks_size_sorted.pickle")
 
-class data_augmenter_subclass(DataAugmenter):
-	 #Redefine how data is pre-processed before training
-	 def data_init(self,batches):
-		  data = self.return_saved_data()
-		  self.save_data(data)
-		  return None  
-	 def data_callback(self, x, y, i):
-		 x_true,_ =self.split_x_y(1)
-		 reset_x0 = lambda x,x_true:x.at[0].set(x_true[0])
-		 x = jax.tree_util.tree_map(reset_x0,x,x_true) # Keep first initial x correct
-		 return x,y
+
 # Format and pad with hidden channel zeros
-DA = data_augmenter_subclass(data,hidden_channels=12)
-DA.init(1)
+DA = DataAugmenter(data,hidden_channels=12)
 x0,y_true = DA.split_x_y(1)
 
 #print(DA.return_true_data())
