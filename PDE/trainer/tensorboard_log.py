@@ -38,7 +38,7 @@ class PDE_Train_log(object):
 			
 		self.train_summary_writer = train_summary_writer
 
-	def tb_training_loop_log_sequence(self,losses,x,i,pde,write_images=True):
+	def tb_training_loop_log_sequence(self,losses,x,i,pde,write_images=False):
 		"""
 			Helper function to format some data logging during the training loop
 
@@ -58,6 +58,7 @@ class PDE_Train_log(object):
 				the NCA object being trained
 			write_images : boolean optional
 				flag whether to save images of intermediate x states. Useful for debugging if a model is learning, but can use up a lot of storage if training many models
+				#TODO: figure out meaningful variation of this for PDE training
 
 		"""
 		#print(losses.shape)
@@ -91,10 +92,10 @@ class PDE_Train_log(object):
 				tf.summary.histogram('Diffusion weights',w1_d,step=i)
 				tf.summary.histogram('Reaction weights',[w1_r,w2_r],step=i)				
 				#diff,static=nca.partition()
-				weight_matrix_figs = plot_weight_matrices(nca)
+				weight_matrix_figs = plot_weight_matrices(pde)
 				tf.summary.image("Weight matrices",np.array(weight_matrix_figs)[:,0],step=i)
 				
-				kernel_weight_figs = plot_weight_kernel_boxplot(nca)
+				kernel_weight_figs = plot_weight_kernel_boxplot(pde)
 				tf.summary.image("Input weights per kernel",np.array(kernel_weight_figs)[:,0],step=i)
 				
 				
@@ -122,7 +123,7 @@ class PDE_Train_log(object):
 						tf.summary.image('Trajectory batch 0, hidden channels',np.einsum("ncxy->nxyc",hidden_channels_r),step=i,max_outputs=N)
 
 	
-	def tb_training_end_log(self,nca,x,t,boundary_callback,write_images=True):
+	def tb_training_end_log(self,pde,x,t,boundary_callback,write_images=True):
 		"""
 		
 
@@ -136,7 +137,7 @@ class PDE_Train_log(object):
 			
 			for b in range(len(x)):
 				
-				T =nca.run(t,x[b][0],boundary_callback[b])
+				T =pde.run(np.linspace(0,t,t+1),x[b][0])
 				T_h = []
 				
 				for i in range(t):
