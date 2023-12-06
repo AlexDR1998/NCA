@@ -110,8 +110,33 @@ class DataAugmenter(object):
 		self.PREVIOUS_KEY = key
 		return x,y
 		
+	@eqx.filter_jit
+	def random_N_select(self,x,y,n,key=jax.random.PRNGKey(int(time.time()))):
+		"""
+		
 
+		Parameters
+		----------
+		x : float32[BATCHES,N-N_steps,CHANNELS,WIDTH,HEIGHT]
+			Initial conditions
+		y : float32[BATCHES,N-N_steps,CHANNELS,WIDTH,HEIGHT]
+			Final states
+		n : int < N-N_steps
+			How many batches to sample.
 
+		Returns
+		-------
+		x_sampled : float32[BATCHES,n,CHANNELS,WIDTH,HEIGHT]
+			sampled initial conditions
+		y_sampled : float32[BATCHES,n,CHANNELS,WIDTH,HEIGHT]
+			sampled final states.
+
+		"""
+		#print(x)
+		ns = jax.random.choice(key,jnp.arange(x[0].shape[0]),shape=(n,),replace=False)
+		x_sampled = jax.tree_util.tree_map(lambda data:data[ns],x)
+		y_sampled = jax.tree_util.tree_map(lambda data:data[ns],y)
+		return x_sampled,y_sampled
 
 	def split_x_y(self,N_steps=1):
 		"""

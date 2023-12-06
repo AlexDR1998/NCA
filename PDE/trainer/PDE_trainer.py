@@ -4,20 +4,22 @@ import optax
 import equinox as eqx
 import datetime
 import time
-from NCA_JAX.trainer.data_augmenter_tree import DataAugmenter
+from PDE.trainer.data_augmenter_pde import DataAugmenterPDE
 import NCA_JAX.trainer.loss as loss
 from NCA_JAX.model.boundary import NCA_boundary
 from PDE.trainer.tensorboard_log import PDE_Train_log
+from PDE.solver.semidiscrete_solver import PDE_solver
 import diffrax
+from tqdm import tqdm
 class PDE_Trainer(object):
 	
 	
 	def __init__(self,
-			     PDE_model,
-			     NCA_model,
+			     PDE_solver,
+			     #NCA_model,
 				 data,
 				 model_filename=None,
-				 DATA_AUGMENTER = DataAugmenter,
+				 DATA_AUGMENTER = DataAugmenterPDE,
 				 BOUNDARY_MASK = None, 
 				 SHARDING = None, 
 				 directory="models/"):
@@ -27,8 +29,8 @@ class PDE_Trainer(object):
 		Parameters
 		----------
 		
-		PDE_model : object callable - (float32 array [N_CHANNELS,_,_]) -> (float32 array [N_CHANNELS,_,_])
-			PDE model to train to fit NCA trajectory
+		PDE_solver : object callable - (float32 array [T], float32 array [N_CHANNELS,_,_]) -> (float32 array [N_CHANNELS,_,_])
+			PDE solver that returns T timesteps of integrated parameterised PDE model. Parameters are to be trained
 		
 		NCA_model : object callable - (float32 array [N_CHANNELS,_,_],PRNGKey) -> (float32 array [N_CHANNELS,_,_])
 			trained NCA object
@@ -57,19 +59,19 @@ class PDE_Trainer(object):
 		None.
 
 		"""
-		self.NCA_model = NCA_model
+		#self.NCA_model = NCA_model
+		self.PDE_solver = PDE_solver
 		
 		# Set up variables 
-		self.CHANNELS = self.NCA_model.N_CHANNELS
-		self.OBS_CHANNELS = data[0].shape[1]
+
+		self.OBS_CHANNELS = self.PDE_solver.func.N_CHANNELS#data[0].shape[1]
 		self.SHARDING = SHARDING
 		
 		
 		# Set up data and data augmenter class
-		self.DATA_AUGMENTER = DATA_AUGMENTER(data,self.CHANNELS-self.OBS_CHANNELS)
-		self.DATA_AUGMENTER.data_init(self.SHARDING)
-		self.data = self.DATA_AUGMENTER.return_saved_data()
-		self.BATCHES = len(self.data)
+		self.DATA_AUGMENTER = DATA_AUGMENTER(data)
+		self.DATA_AUGMENTER.data_init()
+		self.BATCHES = len(data)
 		print("Batches = "+str(self.BATCHES))
 		# Set up boundary augmenter class
 		# length of BOUNDARY_MASK PyTree should be same as number of batches
@@ -125,7 +127,7 @@ class PDE_Trainer(object):
 			  optimiser=None,
 			  STATE_REGULARISER=1.0,
 			  WARMUP=64,
-			  LOSS_SAMPLING = 64,			        
+			  SAMPLING = 8,			        
 			  key=jax.random.PRNGKey(int(time.time()))):
 		
 		
@@ -134,7 +136,84 @@ class PDE_Trainer(object):
 			@eqx.filter_value_and_grad(has_aux=True)
 			def compute_loss(pde_diff,pde_static,x,y,t,key):
 				_pde = eqx.combine(pde_diff,pde_static)
-				v_pde = jax.vmap(_pde,in_axes=0,out_axes=0,axis_name="N")
+				v_pde = jax.vmap(lambda x:_pde([0,t],x)[1][-1],in_axes=0,out_axes=0,axis_name="N")
 				vv_pde= lambda x: jax.tree_util.tree_map(v_pde,x) # different data batches can have different sizes
 				v_loss_func = lambda x,y: jnp.array(jax.tree_util.tree_map(self.loss_func,x,y))
-				term = diffrax.ODETerm(vv_pde)
+				y_pred=vv_pde(x)
+				losses = v_loss_func(y_pred,y)
+				mean_loss = jnp.mean(losses)
+				return mean_loss,(y_pred,losses)
+			
+			pde_diff,pde_static=pde.partition()
+			loss_x,grads = compute_loss(pde_diff, pde_static, x, y, t, key)
+			updates,opt_state = self.OPTIMISER.update(grads, opt_state, pde_diff)
+			pde = eqx.apply_updates(pde,updates)
+			return pde,opt_state,loss_x
+		
+		
+		# Initialise training
+		pde = self.PDE_solver
+		pde_diff,pde_static = pde.partition()
+		if optimiser is None:
+			schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
+			self.OPTIMISER = optax.adamw(schedule)
+		else:
+			self.OPTIMISER = optimiser
+		opt_state = self.OPTIMISER.init(pde_diff)
+		
+		x_full,y_full = self.DATA_AUGMENTER.split_x_y(1)
+		x,y=self.DATA_AUGMENTER.random_N_select(x_full,y_full,SAMPLING)
+		
+		best_loss = 100000000
+		loss_thresh = 1e16
+		model_saved = False
+		error = 0
+		error_at = 0
+		for i in tqdm(range(iters)):
+			key = jax.random.fold_in(key,i)
+			pde,opt_state,(mean_loss,(x,losses)) = make_step(pde, x, y, t, opt_state,key)
+			
+			if self.IS_LOGGING:
+				self.LOGGER.tb_training_loop_log_sequence(losses, x, i, pde)
+			
+			
+			if jnp.isnan(mean_loss):
+				error = 1
+				error_at=i
+				break
+			elif any(list(map(lambda x: jnp.any(jnp.isnan(x)), x))):
+				error = 2
+				error_at=i
+				break
+			elif mean_loss>loss_thresh:
+				error = 3
+				error_at=i
+				break
+			# Check if training has crashed or diverged yet
+			if error==0:
+				# Do data augmentation update
+				#x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
+				#x_full,y_full = self.DATA_AUGMENTER.split_x_y(1)
+				x,y=self.DATA_AUGMENTER.random_N_select(x_full,y_full,SAMPLING)
+				# Save model whenever mean_loss beats the previous best loss
+				if i>WARMUP:
+					if mean_loss < best_loss:
+						model_saved=True
+						self.PDE_solver = pde
+						self.PDE_solver.save(self.MODEL_PATH,overwrite=True)
+						best_loss = mean_loss
+						tqdm.write("--- Model saved at "+str(i)+" epochs with loss "+str(mean_loss)+" ---")
+		if error==0:
+			print("Training completed successfully")
+		elif error==1:
+			print("|-|-|-|-|-|-  Loss reached NaN at step "+str(error_at)+" -|-|-|-|-|-|")
+		elif error==2:
+			print("|-|-|-|-|-|-  X reached NaN at step "+str(error_at)+" -|-|-|-|-|-|")
+		elif error==3:
+			print( "|-|-|-|-|-|-  Loss exceded "+str(loss_thresh)+" at step "+str(error_at)+", optimisation probably diverging  -|-|-|-|-|-|")
+		#assert model_saved, "|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|"
+		if error!=0 and model_saved==False:
+			print("|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|")
+		elif self.IS_LOGGING and model_saved:
+			x,y = self.DATA_AUGMENTER.split_x_y(1)
+			self.LOGGER.tb_training_end_log(self.PDE_solver,x,t,self.BOUNDARY_CALLBACK)

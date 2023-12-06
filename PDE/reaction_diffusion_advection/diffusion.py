@@ -35,7 +35,7 @@ class D(eqx.Module):
         KERNEL = jnp.array([[0.25,0.5,0.25],[0.5,-3,0.5],[0.25,0.5,0.25]]) / (dx*dx)
         KERNEL = jnp.expand_dims(KERNEL,(0,1))
         KERNEL = jnp.repeat(KERNEL,self.N_CHANNELS,axis=0)
-        print(KERNEL.shape)
+        #print(KERNEL.shape)
         self.layers = [
             periodic_pad,
             eqx.nn.Conv2d(in_channels=self.N_CHANNELS,

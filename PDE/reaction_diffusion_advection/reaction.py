@@ -17,7 +17,7 @@ class R(eqx.Module):
     layers: list
     N_CHANNELS: int
     
-    def __init__(self,N_CHANNELS,key=jax.random.PRNGKey(int(time.time()))):
+    def __init__(self,N_CHANNELS,ZERO_INIT=True,key=jax.random.PRNGKey(int(time.time()))):
         key1,key2 = jax.random.split(key,2)
         self.N_CHANNELS = N_CHANNELS
         self.layers = [eqx.nn.Conv2d(in_channels=self.N_CHANNELS,
@@ -31,10 +31,11 @@ class R(eqx.Module):
                                      kernel_size=1,
                                      use_bias=False,
                                      key=key2)]
-                       
-        w_zeros = jnp.zeros((self.N_CHANNELS,self.N_CHANNELS,1,1))
-        w_where = lambda l: l.weight
-        self.layers[-1] = eqx.tree_at(w_where,self.layers[-1],w_zeros)
+        
+        if ZERO_INIT:               
+            w_zeros = jnp.zeros((self.N_CHANNELS,self.N_CHANNELS,1,1))
+            w_where = lambda l: l.weight
+            self.layers[-1] = eqx.tree_at(w_where,self.layers[-1],w_zeros)
     @eqx.filter_jit
     def __call__(self,X):
         for L in self.layers:

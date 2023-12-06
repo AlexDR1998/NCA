@@ -20,7 +20,7 @@ class V(eqx.Module):
     N_CHANNELS: int
     PERIODIC: bool
     DIM: int
-    def __init__(self,N_CHANNELS,PERIODIC=True,DIM=2,dx=0.1,key=jax.random.PRNGKey(int(time.time()))):
+    def __init__(self,N_CHANNELS,PERIODIC=True,DIM=2,dx=0.1,ZERO_INIT=True,key=jax.random.PRNGKey(int(time.time()))):
         key1,key2 = jax.random.split(key,2)
         self.N_CHANNELS = N_CHANNELS
         self.DIM = DIM
@@ -50,10 +50,10 @@ class V(eqx.Module):
                                      kernel_size=1,
                                      use_bias=False,
                                      key=key2)]
-                       
-        w_zeros = jnp.zeros((self.DIM*self.N_CHANNELS,self.N_CHANNELS,1,1))
-        w_where = lambda l: l.weight
-        self.layers[-1] = eqx.tree_at(w_where,self.layers[-1],w_zeros)
+        if ZERO_INIT:               
+            w_zeros = jnp.zeros((self.DIM*self.N_CHANNELS,self.N_CHANNELS,1,1))
+            w_where = lambda l: l.weight
+            self.layers[-1] = eqx.tree_at(w_where,self.layers[-1],w_zeros)
         
         grad_x = jnp.outer(jnp.array([1.0,2.0,1.0]),jnp.array([-1.0,0.0,1.0])) /dx
         grad_y = grad_x.T
