@@ -88,9 +88,9 @@ class PDE_Train_log(object):
 				#w2 = nca.layers[5].weight[:,:,0,0]
 				#b2 = nca.layers[5].bias[:,0,0]
 				
-				tf.summary.histogram('Advection weights',np.stack((np.flatten(w1_v),np.flatten(w2_v))),step=i)
+				tf.summary.histogram('Advection weights',np.stack((w1_v.flatten(),w2_v.flatten())),step=i)
 				tf.summary.histogram('Diffusion weights',w1_d,step=i)
-				tf.summary.histogram('Reaction weights',np.stack((np.flatten(w1_r),np.flatten(w2_r))),step=i)				
+				tf.summary.histogram('Reaction weights',np.stack((w1_r.flatten(),w2_r.flatten())),step=i)				
 				#diff,static=nca.partition()
 				weight_matrix_figs = plot_weight_matrices(pde)
 				tf.summary.image("Weight matrices",np.array(weight_matrix_figs)[:,0],step=i)
