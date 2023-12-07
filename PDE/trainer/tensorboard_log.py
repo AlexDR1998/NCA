@@ -123,13 +123,15 @@ class PDE_Train_log(object):
 						tf.summary.image('Trajectory batch 0, hidden channels',np.einsum("ncxy->nxyc",hidden_channels_r),step=i,max_outputs=N)
 
 	
-	def tb_training_end_log(self,pde,x,t,boundary_callback,write_images=True):
+	def tb_training_end_log(self,pde,x,t,t_save,boundary_callback,write_images=True):
 		"""
 		
 
 			Log trained NCA model trajectory after training
 
 		"""
+		print("Running "+str(t)+" steps")
+		print("Saving at "+str(t_save)+" steps")
 		#print(nca)
 		with self.train_summary_writer.as_default():
 			trs = []
@@ -137,7 +139,7 @@ class PDE_Train_log(object):
 			
 			for b in range(len(x)):
 				
-				T =pde(np.linspace(0,t,t+1),x[b][0])
+				T =pde(np.linspace(0,t,t_save),x[b][0])
 				T_h = []
 				
 				for i in range(t):
