@@ -137,7 +137,7 @@ class PDE_Train_log(object):
 			
 			for b in range(len(x)):
 				
-				T =pde.run(np.linspace(0,t,t+1),x[b][0])
+				T =pde(np.linspace(0,t,t+1),x[b][0])
 				T_h = []
 				
 				for i in range(t):
