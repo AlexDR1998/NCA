@@ -1,6 +1,4 @@
 import jax
-#from jax import config
-jax.config.update("jax_enable_x64", True)
 import equinox as eqx
 import jax.numpy as jnp
 import time
