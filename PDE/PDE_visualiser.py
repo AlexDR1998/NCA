@@ -29,8 +29,8 @@ def plot_weight_matrices(pde):
 
 	Parameters
 	----------
-	nca : object callable - (float32 array [N_CHANNELS,_,_],PRNGKey) -> (float32 array [N_CHANNELS,_,_])
-		the NCA object to plot weights of
+	pde : object callable - (float32 array [T], float32 array [N_CHANNELS,_,_]) -> (float32 array [T,N_CHANNELS,_,_])
+		the PDE solver object to plot parameters of
 
 	Returns
 	-------
@@ -90,14 +90,14 @@ def plot_weight_matrices(pde):
 
 	return figs
 
-def plot_weight_kernel_boxplot(nca):
+def plot_weight_kernel_boxplot(pde):
 	"""
-	Plots boxplots of NCA 1st layer weights per kernel, sorted by which channel they correspond to
+	Plots boxplots of PDE 1st layer weights sorted by which channel they correspond to
 
 	Parameters
 	----------
-	nca : object callable - (float32 array [N_CHANNELS,_,_],PRNGKey) -> (float32 array [N_CHANNELS,_,_])
-		the NCA object to plot weights of
+	pde : object callable - (float32 array [T], float32 array [N_CHANNELS,_,_]) -> (float32 array [T,N_CHANNELS,_,_])
+		the PDE solver object to plot parameters of
 
 	Returns
 	-------
@@ -105,27 +105,36 @@ def plot_weight_kernel_boxplot(nca):
 		a list of images
 
 	"""
-	w = nca.layers[3].weight[:,:,0,0]
-	N_KERNELS = nca.N_FEATURES // nca.N_CHANNELS
-	K_STR = nca.KERNEL_STR.copy()
-	if "DIFF" in K_STR:
-		for i in range(len(K_STR)):
-			if K_STR[i]=="DIFF":
-				K_STR[i]="DIFF X"
-				K_STR.insert(i,"DIFF Y")
+	w1_v = pde.func.f_v.layers[0].weight[:,:,0,0]
+	#w2_v = pde.func.f_v.layers[2].weight[:,:,0,0]
 	
-	#weights_split = []
+	w1_d = pde.func.f_d.layers[-1].weight[:,:,0,0]
+	
+	w1_r = pde.func.f_r.layers[0].weight[:,:,0,0]
+	#w2_r = pde.func.f_r.layers[2].weight[:,:,0,0]
+	
 	figs = []
-	for k in range(N_KERNELS):
-		w_k = w[:,k::N_KERNELS]
-		
-		figure = plt.figure(figsize=(5,5))
-		plt.boxplot(w_k.T)
-		plt.xlabel("Channels")
-		plt.ylabel("Weights")
-		plt.title(K_STR[k]+" kernel weights")
-		#plt.plot()
-		figs.append(plot_to_image(figure))
+	
+	figure = plt.figure(figsize=(5,5))
+	plt.boxplot(w1_v.T)
+	plt.xlabel("Channels")
+	plt.ylabel("Weights")
+	plt.title("Advection 1st layer")
+	figs.append(plot_to_image(figure))
+	
+	figure = plt.figure(figsize=(5,5))
+	plt.boxplot(w1_d.T)
+	plt.xlabel("Channels")
+	plt.ylabel("Weights")
+	plt.title("Diffusion 1st layer")
+	figs.append(plot_to_image(figure))
+	
+	figure = plt.figure(figsize=(5,5))
+	plt.boxplot(w1_r.T)
+	plt.xlabel("Channels")
+	plt.ylabel("Weights")
+	plt.title("Reaction 1st layer")
+	figs.append(plot_to_image(figure))
 	return figs
 
 
