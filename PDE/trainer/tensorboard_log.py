@@ -139,18 +139,18 @@ class PDE_Train_log(object):
 			
 			for b in range(len(x)):
 				
-				T =pde(np.linspace(0,t,t_save),x[b][0])
-				T_h = []
+				_,Y =pde(np.linspace(0,t,t_save),x[b][0])
+				Y_h = []
 				
 				for i in range(t):
-					t_h = T[i][4:]
-					extra_zeros = (-t_h.shape[0])%3
-					t_h = np.pad(t_h,((0,extra_zeros),(0,0),(0,0)))
-					t_h = np.reshape(t_h,(3,-1,t_h.shape[-1]))
-					T_h.append(t_h)
+					y_h = Y[i][4:]
+					extra_zeros = (-y_h.shape[0])%3
+					y_h = np.pad(y_h,((0,extra_zeros),(0,0),(0,0)))
+					y_h = np.reshape(y_h,(3,-1,y_h.shape[-1]))
+					Y_h.append(y_h)
 					#print(t_h.shape)
-				trs.append(T)
-				trs_h.append(T_h)
+				trs.append(Y)
+				trs_h.append(Y_h)
 			for i in range(t):
 				for b in range(len(x)):
 					
