@@ -13,7 +13,7 @@ class DataAugmenterPDE(DataAugmenter):
 	def sub_trajectory_split(self,L,key=jax.random.PRNGKey(int(time.time()))):
 		"""
 		Splits data into x (initial conditions) and y (following sub trajectory of length L).
-		So that x[:,i]->y[:,i+1:i+L] is learned
+		So that x[:,i]->y[:,i+1:i+1+L] is learned
 
 		Parameters
 		----------
@@ -28,9 +28,9 @@ class DataAugmenterPDE(DataAugmenter):
 			Following sub trajectories
 
 		"""
-		pos = jax.random.randint(key,shape=(1,),minval=0,maxval=self.data_true[0].shape[0]-L)[0]
+		pos = jax.random.randint(key,shape=(1,),minval=0,maxval=self.data_true[0].shape[0]-L-1)[0]
 		x = jax.tree_util.tree_map(lambda data:data[pos],self.data_saved)
-		y = jax.tree_util.tree_map(lambda data:data[pos+1:pos+L],self.data_saved)
+		y = jax.tree_util.tree_map(lambda data:data[pos+1:pos+1+L],self.data_saved)
 		
 		return x,y
 		

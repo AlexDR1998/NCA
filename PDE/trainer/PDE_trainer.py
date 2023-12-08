@@ -114,8 +114,6 @@ class PDE_Trainer(object):
 		loss : float32 array [N]
 			loss for each timestep of trajectory
 		"""
-		print(x.shape)
-		print(y.shape)
 		x_obs = x[:,:self.OBS_CHANNELS]
 		y_obs = y[:,:self.OBS_CHANNELS]
 		return loss.euclidean(x_obs,y_obs)
