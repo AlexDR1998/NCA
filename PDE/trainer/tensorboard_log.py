@@ -31,10 +31,13 @@ class PDE_Train_log(object):
 			for b in range(len(data)):
 				if self.RGB_mode=="RGB":
 					#tf.summary.image('True sequence RGB',np.einsum("ncxy->nxyc",data[0,:,:3,...]),step=0,max_outputs=data.shape[0])
-					tf.summary.image('True sequence RGB',np.einsum("ncxy->nxyc",data[b][:,:3,...]),step=b,max_outputs=data[b].shape[0])
+					for t in range(data[b].shape[0]):
+						#tf.summary.image("Final PDE trajectory, batch "+str(b),np.einsum("ncxy->nxyc",trs[b][i][np.newaxis,:3,...]),step=i)
+						tf.summary.image('True sequence RGB',np.einsum("ncxy->nxyc",data[b][t:t+1,:3,...]))
 				elif self.RGB_mode=="RGBA":
 					#tf.summary.image('True sequence RGBA',np.einsum("ncxy->nxyc",data[0,:,:4,...]),step=0,max_outputs=data.shape[0])
-					tf.summary.image('True sequence RGBA',np.einsum("ncxy->nxyc",data[b][:,:4,...]),step=b,max_outputs=data[b].shape[0])
+					for t in range(data[b].shape[0]):
+						tf.summary.image('True sequence RGBA',np.einsum("ncxy->nxyc",data[b][t:t+1,:4,...]))
 			
 		self.train_summary_writer = train_summary_writer
 
