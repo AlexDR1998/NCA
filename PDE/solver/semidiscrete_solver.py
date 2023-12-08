@@ -15,7 +15,7 @@ class PDE_solver(eqx.Module):
 		self.dt0 = dt
 	def __call__(self, ts, y0):
 		solution = diffrax.diffeqsolve(diffrax.ODETerm(self.func),
-									   diffrax.Tsit5(),
+									   diffrax.Heun(),
 									   t0=ts[0],t1=ts[-1],
 									   dt0=self.dt0,
 									   y0=y0,
