@@ -212,7 +212,7 @@ class PDE_Trainer(object):
 		pde_diff,pde_static = pde.partition()
 		if optimiser is None:
 			schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
-			self.OPTIMISER = optax.adamw(schedule)
+			self.OPTIMISER = optax.adam(schedule)
 		else:
 			self.OPTIMISER = optimiser
 		opt_state = self.OPTIMISER.init(pde_diff)
