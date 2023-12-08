@@ -96,10 +96,10 @@ class PDE_Train_log(object):
 				tf.summary.histogram('Reaction weights',np.concatenate((w1_r,w2_r),axis=None),step=i)				
 				#diff,static=nca.partition()
 				weight_matrix_figs = plot_weight_matrices(pde)
-				tf.summary.image("Weight matrices",np.array(weight_matrix_figs)[:,0],step=i)
+				tf.summary.image("Weight matrices",np.array(weight_matrix_figs)[:,0],step=i,max_outputs=5)
 				
 				kernel_weight_figs = plot_weight_kernel_boxplot(pde)
-				tf.summary.image("Input weights per channel",np.array(kernel_weight_figs)[:,0],step=i,max_outputs=5)
+				tf.summary.image("Input weights per channel",np.array(kernel_weight_figs)[:,0],step=i)
 				
 				
 				if write_images:
