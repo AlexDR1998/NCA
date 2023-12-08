@@ -20,7 +20,8 @@ class PDE_solver(eqx.Module):
 									   dt0=self.dt0,
 									   y0=y0,
 									   max_steps=16**4,
-									   stepsize_controller=diffrax.PIDController(rtol=1e-2, atol=1e-4),
+									   #stepsize_controller=diffrax.PIDController(rtol=1e-1, atol=1e-2),
+									   stepsize_controller=diffrax.ConstantStepSize(),
 									   saveat=diffrax.SaveAt(ts=ts))
 		return solution.ts,solution.ys
 	
