@@ -37,7 +37,7 @@ class PDE_Train_log(object):
 				elif self.RGB_mode=="RGBA":
 					#tf.summary.image('True sequence RGBA',np.einsum("ncxy->nxyc",data[0,:,:4,...]),step=0,max_outputs=data.shape[0])
 					for t in range(data[b].shape[0]):
-						tf.summary.image('True sequence RGBA',np.einsum("ncxy->nxyc",data[b][t:t+1,:4,...]).step=0)
+						tf.summary.image('True sequence RGBA',np.einsum("ncxy->nxyc",data[b][t:t+1,:4,...]),step=0)
 			
 		self.train_summary_writer = train_summary_writer
 
