@@ -192,7 +192,7 @@ class PDE_Trainer(object):
 			def compute_loss(pde_diff,pde_static,x,y,t,key):
 				_pde = eqx.combine(pde_diff,pde_static)
 				#v_pde = jax.vmap(lambda x:_pde(jnp.linspace([0,t,t+1]),x)[1][1:],in_axes=0,out_axes=0,axis_name="N")
-				v_pde = lambda x:_pde(jnp.linspace([0,t,t+1]),x)[1][1:] # Don't need to vmap over N
+				v_pde = lambda x:_pde(jnp.linspace(0,t,t+1),x)[1][1:] # Don't need to vmap over N
 				vv_pde= lambda x: jax.tree_util.tree_map(v_pde,x) # different data batches can have different sizes
 				v_loss_func = lambda x,y: jnp.array(jax.tree_util.tree_map(self.loss_func,x,y))
 				y_pred=vv_pde(x)
