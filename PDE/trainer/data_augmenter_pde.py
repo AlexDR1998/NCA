@@ -28,7 +28,7 @@ class DataAugmenterPDE(DataAugmenter):
 			Following sub trajectories
 
 		"""
-		pos = jax.random.randint(key,shape=(1),minval=0,maxval=self.data_true[0].shape[0]-L)
+		pos = jax.random.randint(key,shape=(1,),minval=0,maxval=self.data_true[0].shape[0]-L)[0]
 		x = jax.tree_util.tree_map(lambda data:data[pos],self.data_saved)
 		y = jax.tree_util.tree_map(lambda data:data[pos+1:pos+L],self.data_saved)
 		
