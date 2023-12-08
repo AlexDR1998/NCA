@@ -16,7 +16,6 @@ class PDE_Trainer(object):
 	
 	def __init__(self,
 			     PDE_solver,
-			     #NCA_model,
 				 data,
 				 model_filename=None,
 				 DATA_AUGMENTER = DataAugmenterPDE,
@@ -65,8 +64,6 @@ class PDE_Trainer(object):
 		# Set up variables 
 
 		self.OBS_CHANNELS = self.PDE_solver.func.N_CHANNELS#data[0].shape[1]
-		self.SHARDING = SHARDING
-		
 		
 		# Set up data and data augmenter class
 		self.DATA_AUGMENTER = DATA_AUGMENTER(data)
@@ -124,19 +121,78 @@ class PDE_Trainer(object):
 	def train(self,
 		      t,
 			  iters,
-			  optimiser=None,
-			  STATE_REGULARISER=1.0,
+			  optimiser=None,  
 			  WARMUP=64,
 			  SAMPLING = 8,			        
 			  key=jax.random.PRNGKey(int(time.time()))):
+		"""
+		
+
+		Parameters
+		----------
+		t : Int
+			Number of timesteps for the PDE to predict at once. 
+		iters : Int
+			Number of training iterations.
+		optimiser : optax.GradientTransformation
+			the optax optimiser to use when applying gradient updates to model parameters.
+			if None, constructs adamw with exponential learning rate schedule
+		
+		WARMUP : int optional
+			Number of iterations to wait for until starting model checkpointing. Default is 64
+		SAMPLING : TYPE, optional
+			DESCRIPTION. The default is 8.
+		key : jax.random.PRNGKey, optional
+			Jax random number key. The default is jax.random.PRNGKey(int(time.time())).
+
+		Returns
+		-------
+		TYPE
+			DESCRIPTION.
+		TYPE
+			DESCRIPTION.
+		TYPE
+			DESCRIPTION.
+
+		"""
 		
 		
 		@eqx.filter_jit
 		def make_step(pde,x,y,t,opt_state,key):	
+			"""
+			
+
+			Parameters
+			----------
+			pde : object callable - (float32 [T], float32 [N_CHANNELS,_,_]) -> (float32 [T], float32 [T,N_CHANNELS,_,_])
+				the PDE solver to train
+			x : float32 array [BATCHES,N,CHANNELS,_,_]
+				input state
+			y : float32 array [BATCHES,N,OBS_CHANNELS,_,_]
+				true predictions (time offset with respect to input axes)
+			t : int
+				number of PDE timesteps to predict - mapping X[:,i]->X[:,i+1:i+t]
+			opt_state : optax.OptState
+				internal state of self.OPTIMISER
+			key : jax.random.PRNGKey, optional
+				Jax random number key. 
+				
+			Returns
+			-------
+			pde : object callable - (float32 [T], float32 [N_CHANNELS,_,_]) -> (float32 [T], float32 [T,N_CHANNELS,_,_])
+				the PDE solver with updated parameters
+			opt_state : optax.OptState
+				internal state of self.OPTIMISER, updated in line with having done one update step
+			loss_x : (float32, (float32 array [BATCHES,N,CHANNELS,_,_], float32 array [BATCHES,N]))
+				tuple of (mean_loss, (x,losses)), where mean_loss and losses are returned for logging purposes,
+				and x is the updated PDE state after t iterations
+
+			"""
 			@eqx.filter_value_and_grad(has_aux=True)
 			def compute_loss(pde_diff,pde_static,x,y,t,key):
 				_pde = eqx.combine(pde_diff,pde_static)
-				v_pde = jax.vmap(lambda x:_pde([0,t],x)[1][-1],in_axes=0,out_axes=0,axis_name="N")
+				#v_pde = jax.vmap(lambda x:_pde(jnp.linspace([0,t,t+1]),x)[1][1:],in_axes=0,out_axes=0,axis_name="N")
+				v_pde = lambda x:_pde(jnp.linspace([0,t,t+1]),x)[1][1:] # Don't need to vmap over N
 				vv_pde= lambda x: jax.tree_util.tree_map(v_pde,x) # different data batches can have different sizes
 				v_loss_func = lambda x,y: jnp.array(jax.tree_util.tree_map(self.loss_func,x,y))
 				y_pred=vv_pde(x)
@@ -161,8 +217,9 @@ class PDE_Trainer(object):
 			self.OPTIMISER = optimiser
 		opt_state = self.OPTIMISER.init(pde_diff)
 		
-		x_full,y_full = self.DATA_AUGMENTER.split_x_y(1)
-		x,y=self.DATA_AUGMENTER.random_N_select(x_full,y_full,SAMPLING)
+		#x_full,y_full = self.DATA_AUGMENTER.split_x_y(1)
+		#x,y=self.DATA_AUGMENTER.random_N_select(x_full,y_full,SAMPLING)
+		data_steps = self.DATA_AUGMENTER.data_saved[0].shape[0]
 		
 		best_loss = 100000000
 		loss_thresh = 1e16
@@ -171,6 +228,7 @@ class PDE_Trainer(object):
 		error_at = 0
 		for i in tqdm(range(iters)):
 			key = jax.random.fold_in(key,i)
+			x,y = self.DATA_AUGMENTER.sub_trajectory_split(L=t,key=key)
 			pde,opt_state,(mean_loss,(x,losses)) = make_step(pde, x, y, t, opt_state,key)
 			
 			if self.IS_LOGGING:
@@ -194,7 +252,6 @@ class PDE_Trainer(object):
 				# Do data augmentation update
 				#x,y = self.DATA_AUGMENTER.data_callback(x, y, i)
 				#x_full,y_full = self.DATA_AUGMENTER.split_x_y(1)
-				x,y=self.DATA_AUGMENTER.random_N_select(x_full,y_full,SAMPLING)
 				# Save model whenever mean_loss beats the previous best loss
 				if i>WARMUP:
 					if mean_loss < best_loss:
@@ -216,4 +273,4 @@ class PDE_Trainer(object):
 			print("|-|-|-|-|-|-  Training did not converge, model was not saved  -|-|-|-|-|-|")
 		elif self.IS_LOGGING and model_saved:
 			x,y = self.DATA_AUGMENTER.split_x_y(1)
-			self.LOGGER.tb_training_end_log(self.PDE_solver,x,t*x_full[0].shape[0],x_full[0].shape[0],self.BOUNDARY_CALLBACK)
+			self.LOGGER.tb_training_end_log(self.PDE_solver,x,data_steps,self.BOUNDARY_CALLBACK)
