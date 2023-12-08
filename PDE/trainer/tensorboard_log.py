@@ -96,7 +96,7 @@ class PDE_Train_log(object):
 				tf.summary.image("Weight matrices",np.array(weight_matrix_figs)[:,0],step=i)
 				
 				kernel_weight_figs = plot_weight_kernel_boxplot(pde)
-				tf.summary.image("Input weights per kernel",np.array(kernel_weight_figs)[:,0],step=i)
+				tf.summary.image("Input weights per channel",np.array(kernel_weight_figs)[:,0],step=i,max_outputs=5)
 				
 				
 				if write_images:
@@ -154,7 +154,7 @@ class PDE_Train_log(object):
 			for i in range(t):
 				for b in range(len(x)):
 					
-					tf.summary.image("Final NCA trajectory, batch "+str(b),np.einsum("ncxy->nxyc",trs[b][i][np.newaxis,:3,...]),step=i)
-					tf.summary.image("Final NCA trajectory hidden channels, batch "+str(b),np.einsum("ncxy->nxyc",trs_h[b][i][np.newaxis,...]),step=i)
+					tf.summary.image("Final PDE trajectory, batch "+str(b),np.einsum("ncxy->nxyc",trs[b][i][np.newaxis,:3,...]),step=i)
+					tf.summary.image("Final PDE trajectory hidden channels, batch "+str(b),np.einsum("ncxy->nxyc",trs_h[b][i][np.newaxis,...]),step=i)
 					
 				
