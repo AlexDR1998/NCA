@@ -3,8 +3,8 @@ import jax
 import equinox as eqx
 
 
-def non_negative_diffusion(learn_rate=1e-1,iters=1000):
-	schedule = optax.exponential_decay(1e-1, transition_steps=iters, decay_rate=0.99)
+def non_negative_diffusion(learn_rate=1e-3,iters=1000):
+	schedule = optax.exponential_decay(1e-3, transition_steps=iters, decay_rate=0.99)
 	opt_ra = optax.adamw(schedule) # Adam with weight decay for reaction and advection
 	opt_d = optax.chain(optax.keep_params_nonnegative(),optax.adam(schedule)) # Non-negative adam on diffusive terms (no weight decay)
 	
