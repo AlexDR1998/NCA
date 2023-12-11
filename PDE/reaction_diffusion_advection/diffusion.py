@@ -58,7 +58,7 @@ class D(eqx.Module):
         self.layers[-1]= eqx.tree_at(w_where,self.layers[-1],jnp.abs(self.layers[-1].weight)) # Initialise diffusion constants as positive
     @eqx.filter_jit
     def __call__(self,X):
-        self.layers[-1]= eqx.tree_at(lambda l: l.weight,self.layers[-1],jnp.abs(self.layers[-1].weight))
+        #self.layers[-1]= eqx.tree_at(lambda l: l.weight,self.layers[-1],jnp.abs(self.layers[-1].weight))
         for L in self.layers:
             X = L(X)
         return X
