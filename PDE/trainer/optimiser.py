@@ -21,8 +21,8 @@ def non_negative_diffusion(learn_rate=1e-2,iters=1000):
 		filter_spec = eqx.tree_at(lambda t:t.func.f_d.layers[-1].weight,filter_spec,replace=False)
 		return filter_spec
 	
-	opt_ra = optax.masked(opt_ra,label_not_diffusive)
-	opt_d = optax.masked(opt_d,label_diffusive)
+	opt_ra = optax.masked(opt_ra,label_diffusive)
+	opt_d = optax.masked(opt_d,label_not_diffusive)
 	
 	
 	return optax.chain(opt_d,opt_ra)
