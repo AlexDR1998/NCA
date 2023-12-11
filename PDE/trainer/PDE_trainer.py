@@ -8,6 +8,7 @@ from PDE.trainer.data_augmenter_pde import DataAugmenterPDE
 import NCA_JAX.trainer.loss as loss
 from NCA_JAX.model.boundary import NCA_boundary
 from PDE.trainer.tensorboard_log import PDE_Train_log
+from PDE.trainer.optimiser import non_negative_diffusion
 from PDE.solver.semidiscrete_solver import PDE_solver
 import diffrax
 from tqdm import tqdm
@@ -211,8 +212,9 @@ class PDE_Trainer(object):
 		pde = self.PDE_solver
 		pde_diff,pde_static = pde.partition()
 		if optimiser is None:
-			schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
-			self.OPTIMISER = optax.adam(schedule)
+			#schedule = optax.exponential_decay(1e-2, transition_steps=iters, decay_rate=0.99)
+			#self.OPTIMISER = optax.adam(schedule)
+			self.OPTIMISER = non_negative_diffusion(learn_rate=1e-2,iters=iters)
 		else:
 			self.OPTIMISER = optimiser
 		opt_state = self.OPTIMISER.init(pde_diff)
