@@ -27,7 +27,7 @@ Use the JAX version, it is more up to date and flexible. The tensorflow version 
 
 ## Code structure
 The code is structured as followed.
-- NCA code
+- NCA code (Tensorflow version)
   - NCA/NCA_class.py contains the actual NCA model wrapped in a class for convenience, with saving/loading functionality.
   - NCA/trainer/ contains all the code for fitting NCA to data:
     - NCA/trainer/NCA_trainer.py includes the basic NCA_Trainer class for fitting an NCA to data
