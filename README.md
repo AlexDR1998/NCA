@@ -1,8 +1,8 @@
 # NCA
-Neural Cellular Automata (NCA). Used primarily for modelling spatio-temporal patterning phenomena in my PhD research. Inspired by and based on the work of Mortvinstev et al: https://distill.pub/2020/growing-ca/ , this work extends their NCA framework to learn local rules that yield a time series of images, rather than growing one image from one pixel. This extension allows for modelling dynamical emergent behaviour, and can reproduce the behaviour of classic PDEs (heat, reaction diffusion).
+Neural Cellular Automata (NCA). Used primarily for modelling spatio-temporal patterning phenomena in my PhD research. See this pre-print: https://arxiv.org/abs/2310.14809 . Inspired by and based on the work of Mortvinstev et al: https://distill.pub/2020/growing-ca/ , this work extends their NCA framework to learn local rules that yield a time series of images, rather than growing one image from one pixel. This extension allows for modelling dynamical emergent behaviour, and can reproduce the behaviour of classic PDEs (heat, reaction diffusion).
 
 # How to use
-For the Tensorflow version, see the demo jupyter notebook, it includes details of how to actually use this code on a range of problems. 
+Use the JAX version, it is more up to date and flexible. The tensorflow version is still left up for consistency with experiments performed in https://arxiv.org/abs/2310.14809 , but moving forward only the JAX version will be updated.
 
 ## Requirements (Tensorflow version in NCA/)
  - tensorflow 2.13.0
@@ -13,7 +13,7 @@ For the Tensorflow version, see the demo jupyter notebook, it includes details o
  - tqdm 4.64.0
  - matplotlib 3.7.2
 ## Requirements (JAX version in NCA_JAX/)
- - tensorflow 2.13.0
+ - tensorflow 2.13.0 (just for tensorboard logging)
  - tensorboard 2.13.0
  - numpy 1.24.4
  - scipy 1.9.0
@@ -27,7 +27,7 @@ For the Tensorflow version, see the demo jupyter notebook, it includes details o
 
 ## Code structure
 The code is structured as followed.
-- NCA code
+- NCA code (Tensorflow version)
   - NCA/NCA_class.py contains the actual NCA model wrapped in a class for convenience, with saving/loading functionality.
   - NCA/trainer/ contains all the code for fitting NCA to data:
     - NCA/trainer/NCA_trainer.py includes the basic NCA_Trainer class for fitting an NCA to data
