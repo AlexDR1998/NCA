@@ -12,6 +12,10 @@
 
 export CUDA_VISIBLE_DEVICES=$SGE_HGR_gpu
 module load anaconda
-source activate nca_tensorflow
+source activate tf_a100
+CUDNN_PATH=$(dirname $(python -c "import nvidia.cudnn;print(nvidia.cudnn.__file__)"))
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/:$CUDNN_PATH/lib
+
+
 python ./pde_parameter_explore.py $1
 source deactivate

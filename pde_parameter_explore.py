@@ -17,7 +17,7 @@ N_CHANNELS_PDE = 8
 N_BATCHES = 4
 OBS_CHANNELS_PDE=2
 TRAIN_ITERS = 4000
-LEARN_RATE = 1e-4
+LEARN_RATE = 1e-3
 BATCH_SIZE=32 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
@@ -30,6 +30,7 @@ PDE_STEPS=1024//PDE_SAMPLING
 
  
 ps = index_to_grey_scott_parameters(index)
+print(ps)
 K = ps[0]
 F = ps[1]
 def F_readif(X,Xdx,Xdy,Xdd,D=[0.1,0.05],f=F,k=K):
@@ -43,7 +44,7 @@ def F_readif(X,Xdx,Xdy,Xdd,D=[0.1,0.05],f=F,k=K):
 
 
 
-FILENAME = "trainer_validation/Nadam_coral_"+ACTIVATION+"_8ch_ID_LAP_"+LOSS_FUNC_STRING+"_"+str(PDE_SAMPLING)+"_sampling_parameter_"+str(index)
+FILENAME = "trainer_validation/grey_scott_"+ACTIVATION+"_8ch_ID_LAP_"+LOSS_FUNC_STRING+"_"+str(PDE_SAMPLING)+"_sampling_parameter_"+str(index)
 ca_readif =NCA(N_CHANNELS_PDE,
                 FIRE_RATE=1,              
                 OBS_CHANNELS=2,
