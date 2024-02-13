@@ -17,7 +17,7 @@ N_CHANNELS_PDE = 8
 N_BATCHES = 4
 OBS_CHANNELS_PDE=2
 TRAIN_ITERS = 4000
-LEARN_RATE = 1e-3
+LEARN_RATE = 1e-4
 BATCH_SIZE=32 # Split gradient updates into batches - computing gradient across all steps (~1000 timesteps) causes OOM errors on Eddie
 NCA_WEIGHT_REG = 0.001
 OPTIMIZER="Nadam"
@@ -28,8 +28,10 @@ LOSS_FUNC = None
 PDE_SAMPLING = 32
 PDE_STEPS=1024//PDE_SAMPLING
 
-F,K = index_to_grey_scott_parameters(index)
-
+ 
+ps = index_to_grey_scott_parameters(index)
+K = ps[0]
+F = ps[1]
 def F_readif(X,Xdx,Xdy,Xdd,D=[0.1,0.05],f=F,k=K):
 	# Reaction diffusion as described in https://www.karlsims.com/rd.html
 	ch_1 = D[0]*Xdd[...,0] - X[...,1]**2*X[...,0] + f*(1-X[...,0])
