@@ -94,7 +94,7 @@ def load_trajectory_log(summary_dir):
             trajectory.append(t)
   return steps,trajectory
 
-def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsample=2):
+def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsample=2,crop_square=False):
   """
     Loads a sequence of images in impath_emojis
     Parameters
@@ -112,6 +112,9 @@ def load_emoji_sequence(filename_sequence,impath_emojis="../Data/Emojis/",downsa
   images = []
   for filename in filename_sequence:
     im = skimage.io.imread(impath_emojis+filename)[::downsample,::downsample]
+    if crop_square:
+      s= min(im.shape[0],im.shape[1])
+      im = im[:s,:s]
     im = im[np.newaxis] / 255.0
     images.append(im)
   return np.array(images)

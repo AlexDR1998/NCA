@@ -247,3 +247,16 @@ def index_to_channel_sample(index):
 	N_CHANNELS = channels[indices[0]]
 	SAMPLING = samplings[indices[1]]
 	return N_CHANNELS,SAMPLING
+
+def index_to_grey_scott_parameters(index):
+	#[k,f]
+	params = [[0.06264,0.06100],
+		   	  [0.05171,0.11074],
+			  [0.06399,0.03616],
+			  [0.05571,0.02088],
+			  [0.04486,0.01262],
+			  [0.06067,0.08242],
+			  [0.05626,0.09805],
+			  [0.05151,0.02548],
+			  [0.06081,0.05587]]
+	return params[index]
