@@ -1,5 +1,5 @@
 #! /bin/sh
-#$ -N pde_parameters
+#$ -N pde_noise
 #$ -M s1605376@ed.ac.uk
 #$ -cwd
 #$ -l h_rt=24:00:00
@@ -17,5 +17,5 @@ CUDNN_PATH=$(dirname $(python -c "import nvidia.cudnn;print(nvidia.cudnn.__file_
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/:$CUDNN_PATH/lib
 
 
-python ./pde_parameter_explore.py $1
+python ./pde_noise_explore.py $1
 source deactivate

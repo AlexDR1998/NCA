@@ -11,7 +11,7 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		Class to train a NCA to the output of a PDE simulation
 	"""
 
-	def __init__(self,NCA_model,x0,F,N_BATCHES,T,step_mul=1,model_filename=None,directory="models/"):
+	def __init__(self,NCA_model,x0,F,N_BATCHES,T,step_mul=1,model_filename=None,directory="models/",noise_frac=0.0):
 		"""
 			Initialiser method
 
@@ -60,7 +60,9 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		data_max = np.max(data)
 		data_min = np.min(data)
 		data = (data-data_min)/(data_max-data_min)
-
+		self.data_min = data_min
+		self.data_max = data_max
+		self.noise_frac = noise_frac
 		super().__init__(NCA_model,data,N_BATCHES,model_filename,directory=directory)
 		
 		assert x0.shape[-1]==self.OBS_CHANNELS, "Observable channels of NCA does not match data dimensions"
@@ -123,7 +125,9 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		
 
 		with train_summary_writer.as_default():
-			grids = self.data
+			noise = np.random.uniform(low=self.data_min,high=self.data_max,size=self.data.shape)
+
+			grids = (1-self.noise_frac)*self.data + self.noise_frac*noise
 			#for b in range(self.N_BATCHES):
 			for i in range(self.T_steps):
 				if self.RGB_mode=="RGB":
@@ -251,6 +255,12 @@ class NCA_PDE_Trainer(NCA_Trainer):
 		x_a = np.array(x)
 		t_a = np.array(self.target)
 
+		noise_x = np.random.uniform(low=self.data_min,high=self.data_max,size=x_a.shape)
+		noise_t = np.random.uniform(low=self.data_min,high=self.data_max,size=t_a.shape)
+		
+
+		x_a = (1-self.noise_frac)*x_a + self.noise_frac*noise_x
+		t_a = (1-self.noise_frac)*t_a + self.noise_frac*noise_t
 		#if TRAIN_MODE=="differential":
 		#	print("======== Debug ========")
 		#	print(t_a.shape)
