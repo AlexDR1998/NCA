@@ -261,6 +261,9 @@ class NCA_PDE_Trainer(NCA_Trainer):
 
 		x_a = (1-self.noise_frac)*x_a + self.noise_frac*noise_x
 		t_a = (1-self.noise_frac)*t_a + self.noise_frac*noise_t
+
+		#x_a = x_a.astype(float)
+		#t_a = t_a.astype(float)
 		#if TRAIN_MODE=="differential":
 		#	print("======== Debug ========")
 		#	print(t_a.shape)
@@ -274,9 +277,9 @@ class NCA_PDE_Trainer(NCA_Trainer):
 			#--- Slice randomly shuffled subsets of x
 
 			X_b = x_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]]
-			X_b = tf.convert_to_tensor(X_b)
+			X_b = tf.convert_to_tensor(X_b,dtype=tf.float32)
 			T_b = t_a[BATCH_IND[b*BATCH_SIZE:(b+1)*BATCH_SIZE]]
-			T_b = tf.convert_to_tensor(T_b)
+			T_b = tf.convert_to_tensor(T_b,dtype=tf.float32)
 
 			with tf.GradientTape() as g:
 				reg_log = []
